@@ -3,6 +3,7 @@ module github.com/Recrusion/telegram-bot-service
 go 1.25.5
 
 require (
+	github.com/Telegram-bot-for-register-on-events/shared-proto v0.0.0-20251222145406-222d89023129 // indirect
 	github.com/go-telegram-bot-api/telegram-bot-api/v5 v5.5.1 // indirect
 	github.com/jmoiron/sqlx v1.4.0 // indirect
 	github.com/joho/godotenv v1.5.1 // indirect

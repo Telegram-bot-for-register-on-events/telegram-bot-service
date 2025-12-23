@@ -1,4 +1,8 @@
 filippo.io/edwards25519 v1.1.0/go.mod h1:BxyFTGdWcka3PhytdK4V28tE5sGfRvvvRV7EaN4VDT4=
+github.com/Telegram-bot-for-register-on-events/shared-proto v0.0.0-20251222104049-ce8ced295288 h1:oqhVlx5onZF3PewgeEmhVeo9eZt6lif5uCr+uy9vZ38=
+github.com/Telegram-bot-for-register-on-events/shared-proto v0.0.0-20251222104049-ce8ced295288/go.mod h1:QQc0QYALQkWpImNCDCHSmYk2hBijOxmYaQS6WVudXOU=
+github.com/Telegram-bot-for-register-on-events/shared-proto v0.0.0-20251222145406-222d89023129 h1:ayJpejLcBtOVhO2G7DQsqcQU/y11Y3yFdiULn8Uqzrc=
+github.com/Telegram-bot-for-register-on-events/shared-proto v0.0.0-20251222145406-222d89023129/go.mod h1:QQc0QYALQkWpImNCDCHSmYk2hBijOxmYaQS6WVudXOU=
 github.com/go-sql-driver/mysql v1.8.1/go.mod h1:wEBSXgmK//2ZFJyE+qWnIsVGmvmEKlqwuVSjsCm7DZg=
 github.com/go-telegram-bot-api/telegram-bot-api v4.6.4+incompatible h1:2cauKuaELYAEARXRkq2LrJ0yDDv1rW7+wrTEdVL3uaU=
 github.com/go-telegram-bot-api/telegram-bot-api v4.6.4+incompatible/go.mod h1:qf9acutJ8cwBUhm1bqgz6Bei9/C/c93FPDljKWwsOgM=
