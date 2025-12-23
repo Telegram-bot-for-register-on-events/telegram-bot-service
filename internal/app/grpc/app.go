@@ -33,12 +33,14 @@ func (a *App) start() error {
 
 	listener, err := net.Listen("tcp", ":"+a.port)
 	if err != nil {
+		log.Error("start to gRPC server - %s", err.Error())
 		return fmt.Errorf("start gRPC server - %v", err)
 	}
 
 	log.Info("starting gRPC server", slog.String("address", listener.Addr().String()))
 
 	if err = a.gRPCServer.Serve(listener); err != nil {
+		log.Error("start to gRPC server - %s", err.Error())
 		return fmt.Errorf("start gRPC server - %v", err)
 	}
 
