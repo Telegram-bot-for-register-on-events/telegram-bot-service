@@ -77,7 +77,8 @@ func (b *Bot) startMessage(ctx context.Context, msg *tgbotapi.Message) error {
 
 	_, err := b.bot.Send(answer)
 	if err != nil {
-		return nil
+		b.log.Error("error send answer", err.Error())
+		return err
 	}
 	return nil
 }
