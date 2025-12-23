@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/jmoiron/sqlx"
@@ -15,11 +16,15 @@ type User struct {
 }
 
 type UserRepository struct {
-	db *sqlx.DB
+	log *slog.Logger
+	db  *sqlx.DB
 }
 
-func NewUserRepository(db *sqlx.DB) *UserRepository {
-	return &UserRepository{db: db}
+func NewUserRepository(db *sqlx.DB, log *slog.Logger) *UserRepository {
+	return &UserRepository{
+		db:  db,
+		log: log,
+	}
 }
 
 func (repo *UserRepository) SaveUserInfo(ctx context.Context, chatID int64, username string) error {
@@ -33,6 +38,7 @@ func (repo *UserRepository) SaveUserInfo(ctx context.Context, chatID int64, user
 	)
 
 	if err != nil {
+		repo.log.Error("save user info", err.Error())
 		return fmt.Errorf("save user info in repo - %v", err)
 	}
 
