@@ -17,23 +17,23 @@ import (
 func main() {
 	log := setupLogger()
 
-	cfg, err := config.LoadConfig()
+	cfg, err := config.LoadConfig(log)
 	if err != nil {
 		log.Error("failed to load config", "error", err)
 		os.Exit(1)
 	}
 	log.Info("config successfully loaded")
 
-	db, err := database.Connect(cfg.DatabasePath)
+	db, err := database.Connect(cfg.DatabasePath, log)
 	if err != nil {
-		log.Error("failed to connect to database", "error", err)
+		log.Error("failed to connect database", "error", err)
 		os.Exit(1)
 	}
 	log.Info("connection to database successfully created")
-	defer db.Close()
+	defer database.Close(db, log)
 
-	repo := repository.NewUserRepository(db)
-	srvc := service.NewUserService(repo)
+	repo := repository.NewUserRepository(db, log)
+	srvc := service.NewUserService(log, repo)
 
 	b, err := bot.NewBot(log, cfg.TelegramBotToken, srvc)
 	if err != nil {
@@ -50,6 +50,7 @@ func main() {
 
 	log.Info("shutting down...")
 	application.GRPCServer.Stop()
+
 	b.Stop()
 }
 
