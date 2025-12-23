@@ -4,22 +4,28 @@ import (
 	"context"
 	"errors"
 	"fmt"
-
-	"github.com/Recrusion/telegram-bot-service/internal/repository"
+	"log/slog"
 )
 
 type UserService struct {
-	service *repository.UserRepository
+	log     *slog.Logger
+	service UserSaver
 }
 
-func NewUserService(repo *repository.UserRepository) *UserService {
+type UserSaver interface {
+	SaveUserInfo(ctx context.Context, chatID int64, username string) error
+}
+
+func NewUserService(log *slog.Logger, service UserSaver) *UserService {
 	return &UserService{
-		service: repo,
+		log:     log,
+		service: service,
 	}
 }
 
 func (s *UserService) SaveUserInfo(ctx context.Context, chatID int64, username string) error {
 	if chatID == 0 {
+		s.log.Error("")
 		return errors.New("chatID cannot be equal to 0")
 	} else if chatID < -999999999999999 || chatID > 999999999999999 {
 		return errors.New("chatID out of range")
