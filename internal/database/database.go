@@ -10,12 +10,12 @@ import (
 func Connect(dsn string) (*sqlx.DB, error) {
 	db, err := sqlx.Open("postgres", dsn)
 	if err != nil {
-		return nil, fmt.Errorf("не удалось подключиться к базе данных, %v", err)
+		return nil, fmt.Errorf("database connect - %v", err)
 	}
 
 	if err = db.Ping(); err != nil {
 		db.Close()
-		return nil, fmt.Errorf("ошибка проверки подключения к базе данных, %v", err)
+		return nil, fmt.Errorf("database connect - %v", err)
 	}
 
 	return db, nil
