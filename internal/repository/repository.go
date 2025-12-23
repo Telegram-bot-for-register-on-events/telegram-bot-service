@@ -22,7 +22,7 @@ func NewUserRepository(db *sqlx.DB) *UserRepository {
 	return &UserRepository{db: db}
 }
 
-func (repo *UserRepository) Save(ctx context.Context, chatID int64, username string) error {
+func (repo *UserRepository) SaveUserInfo(ctx context.Context, chatID int64, username string) error {
 	_, err := repo.db.NamedExecContext(ctx,
 		"insert into users (chat_id, username, created_at) values (:chat_id, :username, :created_at) on conflict (chat_id) do nothing",
 		User{
@@ -33,7 +33,7 @@ func (repo *UserRepository) Save(ctx context.Context, chatID int64, username str
 	)
 
 	if err != nil {
-		return fmt.Errorf("ошибка сохранения данных о пользователе в базу данных: %v", err)
+		return fmt.Errorf("save user info in repo - %v", err)
 	}
 
 	return nil
