@@ -1,33 +1,59 @@
 package main
 
 import (
-	"log"
+	"log/slog"
+	"os"
+	"os/signal"
+	"syscall"
 
-	bot2 "github.com/Recrusion/telegram-bot-service/internal/bot"
+	"github.com/Recrusion/telegram-bot-service/internal/app"
+	bot "github.com/Recrusion/telegram-bot-service/internal/bot"
 	"github.com/Recrusion/telegram-bot-service/internal/config"
 	"github.com/Recrusion/telegram-bot-service/internal/database"
 	"github.com/Recrusion/telegram-bot-service/internal/repository"
+	"github.com/Recrusion/telegram-bot-service/internal/service"
 )
 
 func main() {
+	log := setupLogger()
+
 	cfg, err := config.LoadConfig()
 	if err != nil {
-		log.Panic(err)
+		log.Error("failed to load config", "error", err)
+		os.Exit(1)
 	}
-	log.Printf("Конфиг успешно загружен!")
+	log.Info("config successfully loaded")
 
 	db, err := database.Connect(cfg.DatabasePath)
 	if err != nil {
-		log.Panic(err)
+		log.Error("failed to connect to database", "error", err)
+		os.Exit(1)
 	}
-	log.Printf("Подключение к базе данных установлено!")
+	log.Info("connection to database successfully created")
 	defer db.Close()
 
 	repo := repository.NewUserRepository(db)
-	bot, err := bot2.NewBot(cfg.TelegramBotToken, repo)
-	if err != nil {
-		log.Panic(err)
-	}
+	srvc := service.NewUserService(repo)
 
-	bot.Start()
+	b, err := bot.NewBot(log, cfg.TelegramBotToken, srvc)
+	if err != nil {
+		panic(err)
+	}
+	application := app.NewApp(log, cfg.GRPCPort)
+
+	go b.MustStart()
+	go application.GRPCServer.MustStart()
+
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
+	<-stop
+
+	log.Info("shutting down...")
+	application.GRPCServer.Stop()
+	b.Stop()
+}
+
+func setupLogger() *slog.Logger {
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	return logger
 }
