@@ -9,18 +9,18 @@ import (
 	"google.golang.org/grpc"
 )
 
-// App описывает gRPC-сервер микросервиса
-type App struct {
+// GRPCApp описывает gRPC-сервер микросервиса
+type GRPCApp struct {
 	log        *slog.Logger
 	gRPCServer *grpc.Server
 	port       string
 }
 
-// NewApp конструктор для App
-func NewApp(log *slog.Logger, port string) *App {
+// NewApp конструктор для GRPCApp
+func NewApp(log *slog.Logger, port string) *GRPCApp {
 	gRPCServer := grpc.NewServer()
 	event.Register(gRPCServer)
-	return &App{
+	return &GRPCApp{
 		log:        log,
 		gRPCServer: gRPCServer,
 		port:       port,
@@ -28,7 +28,7 @@ func NewApp(log *slog.Logger, port string) *App {
 }
 
 // start запускает gRPC-сервер на указанном порту для прослушивания входящих соединений и обработки запросов
-func (a *App) start() error {
+func (a *GRPCApp) start() error {
 	log := a.log.With(
 		slog.String("operation", "start gRPC server"),
 		slog.String("port", a.port),
@@ -54,14 +54,14 @@ func (a *App) start() error {
 }
 
 // MustStart обёртка для start, при ошибке - паникует
-func (a *App) MustStart() {
+func (a *GRPCApp) MustStart() {
 	if err := a.start(); err != nil {
 		panic(err)
 	}
 }
 
 // Stop выполняет GracefulShutdown для gRPC-сервера
-func (a *App) Stop() {
+func (a *GRPCApp) Stop() {
 	a.log.With(slog.String("operation", "stop gRPC server")).Info("stopping gRPC server", slog.String("port", a.port))
 	a.gRPCServer.GracefulStop()
 }
