@@ -10,6 +10,7 @@ import (
 	"github.com/Recrusion/telegram-bot-service/internal/database"
 	"github.com/Recrusion/telegram-bot-service/internal/repository"
 	"github.com/Recrusion/telegram-bot-service/internal/service"
+	"github.com/jmoiron/sqlx"
 )
 
 // App описывает микросервис целиком, единая точка входа для всего микросервиса
@@ -17,6 +18,7 @@ type App struct {
 	log        *slog.Logger
 	GRPCServer *grpcapp.GRPCApp
 	Bot        *bot.Bot
+	Database   *sqlx.DB
 }
 
 // NewApp констурктор для App
@@ -49,6 +51,7 @@ func NewApp(log *slog.Logger, cfg *config.Config) *App {
 		log:        log,
 		GRPCServer: gRPCServer,
 		Bot:        b,
+		Database:   db,
 	}
 }
 
@@ -61,8 +64,9 @@ func (app *App) MustStart() {
 }
 
 // Close реализует GracefulShutdown для всего микросервиса
-func (app *App) Close() {
+func (app *App) Stop() {
 	app.log.Info("shutting down...")
 	app.GRPCServer.Stop()
 	app.Bot.Stop()
+	database.Close(app.Database, app.log)
 }
