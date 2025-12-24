@@ -7,15 +7,18 @@ import (
 	"log/slog"
 )
 
+// UserService описывает сервисный слой микросервиса
 type UserService struct {
 	log     *slog.Logger
 	service UserSaver
 }
 
+// UserSaver определяет методы для сохранения информации о пользователе
 type UserSaver interface {
 	SaveUserInfo(ctx context.Context, chatID int64, username string) error
 }
 
+// NewUserService констурктор для создания UserService
 func NewUserService(log *slog.Logger, service UserSaver) *UserService {
 	return &UserService{
 		log:     log,
@@ -23,6 +26,7 @@ func NewUserService(log *slog.Logger, service UserSaver) *UserService {
 	}
 }
 
+// SaveUserInfo проводит валидацию входных данных и передаёт их в слой взаимодействия с базой данных
 func (s *UserService) SaveUserInfo(ctx context.Context, chatID int64, username string) error {
 	if chatID == 0 {
 		s.log.Error("")
@@ -36,6 +40,7 @@ func (s *UserService) SaveUserInfo(ctx context.Context, chatID int64, username s
 	} else if len(username) < 5 || len(username) > 32 {
 		return errors.New("username length must be between 5 and 32")
 	}
+
 	err := s.service.SaveUserInfo(ctx, chatID, username)
 	if err != nil {
 		return fmt.Errorf("save user info in service - %v", err)
