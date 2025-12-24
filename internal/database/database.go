@@ -8,6 +8,7 @@ import (
 	_ "github.com/lib/pq"
 )
 
+// Connect открывает соединение с базой данной
 func Connect(dsn string, log *slog.Logger) (*sqlx.DB, error) {
 	db, err := sqlx.Open("postgres", dsn)
 	if err != nil {
@@ -15,6 +16,7 @@ func Connect(dsn string, log *slog.Logger) (*sqlx.DB, error) {
 		return nil, fmt.Errorf("database connect - %v", err)
 	}
 
+	// Проверяем подключение к базе данных, в противном случае возвращаем ошибку
 	if err = db.Ping(); err != nil {
 		log.Error("database connect", err.Error())
 		return nil, fmt.Errorf("database connect - %v", err)
@@ -23,6 +25,7 @@ func Connect(dsn string, log *slog.Logger) (*sqlx.DB, error) {
 	return db, nil
 }
 
+// Close закрывает соединение с базой данных
 func Close(db *sqlx.DB, log *slog.Logger) {
 	log.With(slog.String("operation", "close connection")).Info("closing the database connection")
 	if err := db.Close(); err != nil {
