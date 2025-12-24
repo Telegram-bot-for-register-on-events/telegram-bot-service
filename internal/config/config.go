@@ -8,12 +8,14 @@ import (
 	"github.com/joho/godotenv"
 )
 
+// Config описывает конфигурацию микросервиса
 type Config struct {
 	TelegramBotToken string
 	DatabasePath     string
 	GRPCPort         string
 }
 
+// getEnv проверяет наличие переменной окружения и возвращает её текущее значение, либо стандартное, при отсутствии текущего
 func getEnv(key, reserve string) string {
 	if value, ok := os.LookupEnv(key); ok {
 		return value
@@ -21,8 +23,10 @@ func getEnv(key, reserve string) string {
 	return reserve
 }
 
+// LoadConfig загружает конфигурацию из переменных окружения
 func LoadConfig(log *slog.Logger) (*Config, error) {
 	log.Info("loading environment variables")
+	// Чтение переменных окружения из .env
 	if err := godotenv.Load(); err != nil {
 		log.Error("load config", err.Error())
 		return nil, fmt.Errorf("load config - %v", err)
