@@ -12,14 +12,14 @@ import (
 func Connect(dsn string, log *slog.Logger) (*sqlx.DB, error) {
 	db, err := sqlx.Open("postgres", dsn)
 	if err != nil {
-		log.Error("database connect", err.Error())
-		return nil, fmt.Errorf("database connect - %v", err)
+		log.Error("error database connect", err.Error())
+		return nil, fmt.Errorf("error database connect - %w", err)
 	}
 
 	// Проверяем подключение к базе данных, в противном случае возвращаем ошибку
 	if err = db.Ping(); err != nil {
-		log.Error("database connect", err.Error())
-		return nil, fmt.Errorf("database connect - %v", err)
+		log.Error("error database connect", err.Error())
+		return nil, fmt.Errorf("error database connect - %w", err)
 	}
 
 	return db, nil
