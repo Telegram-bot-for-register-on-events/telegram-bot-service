@@ -31,7 +31,7 @@ type gRPCClientConfig struct {
 	address string
 }
 
-// newTelegramBotConfig загружает конфигурацию для телеграм-бота
+// newTelegramBotConfig создаёт конфигурацию для телеграм-бота
 func newTelegramBotConfig(log *slog.Logger) (*telegramBotConfig, error) {
 	token := getEnv("TELEGRAM_BOT_TOKEN", "")
 	if token == "" {
@@ -42,7 +42,7 @@ func newTelegramBotConfig(log *slog.Logger) (*telegramBotConfig, error) {
 	return tgBotCfg, nil
 }
 
-// newDatabaseConfig загружает конфигурацию для базы данных
+// newDatabaseConfig создаёт конфигурацию для базы данных
 func newDatabaseConfig(log *slog.Logger) (*databaseConfig, error) {
 	path := getEnv("DSN", "")
 	if path == "" {
@@ -53,7 +53,7 @@ func newDatabaseConfig(log *slog.Logger) (*databaseConfig, error) {
 	return dbCfg, nil
 }
 
-// newGRPCClientConfig загружает конфигурацию для gRPC-клиента
+// newGRPCClientConfig создаёт конфигурацию для gRPC-клиента
 func newGRPCClientConfig(log *slog.Logger) (*gRPCClientConfig, error) {
 	address := getEnv("GRPC_ADDRESS", "")
 	if address == "" {
@@ -72,29 +72,29 @@ func getEnv(key, reserve string) string {
 	return reserve
 }
 
-// LoadConfig загружает конфигурацию из переменных окружения
+// LoadConfig создаёт конфигурацию микросервиса
 func LoadConfig(log *slog.Logger) (*Config, error) {
 	log.Info("loading environment variables")
-	// Чтение переменных окружения из .env
+	// Загрузка переменных окружения из .env
 	if err := godotenv.Load(); err != nil {
 		log.Error("error load config", err.Error())
 		return nil, fmt.Errorf("error load config - %w", err)
 	}
 	log.Info("environment variables successfully loaded")
 
-	// Загружаем конфигурацию базы данных
+	// Создаём конфигурацию базы данных
 	dbCfg, err := newDatabaseConfig(log)
 	if err != nil {
 		log.Error("error load config", err.Error())
 		return nil, err
 	}
-	// Загружаем конфигурацию телеграм-бота
+	// Создаём конфигурацию телеграм-бота
 	tgBotCfg, err := newTelegramBotConfig(log)
 	if err != nil {
 		log.Error("error load config", err.Error())
 		return nil, err
 	}
-	// Загружаем конфигурацию gRPC-клиента
+	// Создаём конфигурацию gRPC-клиента
 	gRPCCfg, err := newGRPCClientConfig(log)
 	if err != nil {
 		log.Error("error load config", err.Error())
