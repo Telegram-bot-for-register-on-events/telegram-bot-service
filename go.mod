@@ -1,4 +1,4 @@
-module github.com/Recrusion/telegram-bot-service
+module github.com/Telegram-bot-for-register-on-events/telegram-bot-service
 
 go 1.25.5
 
