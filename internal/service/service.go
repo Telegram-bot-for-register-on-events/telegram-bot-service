@@ -18,7 +18,7 @@ type UserSaver interface {
 	SaveUserInfo(ctx context.Context, chatID int64, username string) error
 }
 
-// NewUserService констурктор для создания UserService
+// NewUserService конструктор для создания UserService
 func NewUserService(log *slog.Logger, service UserSaver) *UserService {
 	return &UserService{
 		log:     log,
@@ -43,7 +43,7 @@ func (s *UserService) SaveUserInfo(ctx context.Context, chatID int64, username s
 
 	err := s.service.SaveUserInfo(ctx, chatID, username)
 	if err != nil {
-		return fmt.Errorf("save user info in service - %v", err)
+		return fmt.Errorf("error save user info in service - %w", err)
 	}
 	return nil
 }
