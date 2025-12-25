@@ -7,23 +7,13 @@ import (
 	"syscall"
 
 	"github.com/Recrusion/telegram-bot-service/internal/app"
-	"github.com/Recrusion/telegram-bot-service/internal/config"
 )
 
 func main() {
 	// Инициализируем логгер
 	log := setupLogger()
-
-	// Загружаем конфигурацию
-	cfg, err := config.LoadConfig(log)
-	if err != nil {
-		log.Error("failed to load config", "error", err)
-		os.Exit(1)
-	}
-	log.Info("config successfully loaded")
-
 	// Создаём новый инстанс микросервиса
-	application := app.NewApp(log, cfg)
+	application := app.NewApp(log)
 	// Запускаем его
 	application.MustStart()
 
