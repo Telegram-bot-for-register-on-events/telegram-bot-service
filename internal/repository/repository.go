@@ -9,7 +9,7 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-// User описывает данные о пользовователе, необходимые для сохранения
+// User описывает данные о пользователе, необходимые для сохранения
 type User struct {
 	ChatID    int64     `db:"chat_id"`
 	Username  string    `db:"username"`
@@ -43,8 +43,8 @@ func (repo *UserRepository) SaveUserInfo(ctx context.Context, chatID int64, user
 	)
 
 	if err != nil {
-		repo.log.Error("save user info", err.Error())
-		return fmt.Errorf("save user info in repo - %v", err)
+		repo.log.Error("error save user info", err.Error())
+		return fmt.Errorf("error save user info in repo - %w", err)
 	}
 
 	return nil
