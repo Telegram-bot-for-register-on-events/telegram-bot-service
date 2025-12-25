@@ -6,7 +6,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/Recrusion/telegram-bot-service/internal/app"
+	"github.com/Telegram-bot-for-register-on-events/telegram-bot-service/internal/app"
 )
 
 func main() {

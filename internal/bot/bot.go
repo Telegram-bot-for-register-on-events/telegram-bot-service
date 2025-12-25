@@ -5,8 +5,8 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/Recrusion/telegram-bot-service/internal/client/event"
-	"github.com/Recrusion/telegram-bot-service/internal/service"
+	"github.com/Telegram-bot-for-register-on-events/telegram-bot-service/internal/client/event"
+	"github.com/Telegram-bot-for-register-on-events/telegram-bot-service/internal/service"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 

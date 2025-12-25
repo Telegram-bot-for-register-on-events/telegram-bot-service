@@ -4,12 +4,12 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/Recrusion/telegram-bot-service/internal/bot"
-	"github.com/Recrusion/telegram-bot-service/internal/client/event"
-	"github.com/Recrusion/telegram-bot-service/internal/config"
-	"github.com/Recrusion/telegram-bot-service/internal/database"
-	"github.com/Recrusion/telegram-bot-service/internal/repository"
-	"github.com/Recrusion/telegram-bot-service/internal/service"
+	"github.com/Telegram-bot-for-register-on-events/telegram-bot-service/internal/bot"
+	"github.com/Telegram-bot-for-register-on-events/telegram-bot-service/internal/client/event"
+	"github.com/Telegram-bot-for-register-on-events/telegram-bot-service/internal/config"
+	"github.com/Telegram-bot-for-register-on-events/telegram-bot-service/internal/database"
+	"github.com/Telegram-bot-for-register-on-events/telegram-bot-service/internal/repository"
+	"github.com/Telegram-bot-for-register-on-events/telegram-bot-service/internal/service"
 	"github.com/jmoiron/sqlx"
 )
 
