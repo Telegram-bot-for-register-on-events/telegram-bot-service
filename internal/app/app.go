@@ -7,17 +7,15 @@ import (
 	"github.com/Telegram-bot-for-register-on-events/telegram-bot-service/internal/bot"
 	"github.com/Telegram-bot-for-register-on-events/telegram-bot-service/internal/client/event"
 	"github.com/Telegram-bot-for-register-on-events/telegram-bot-service/internal/config"
-	"github.com/Telegram-bot-for-register-on-events/telegram-bot-service/internal/database"
 	"github.com/Telegram-bot-for-register-on-events/telegram-bot-service/internal/service"
 	"github.com/Telegram-bot-for-register-on-events/telegram-bot-service/internal/storage/postgres"
-	"github.com/jmoiron/sqlx"
 )
 
 // App описывает микросервис целиком, единая точка входа для всего микросервиса
 type App struct {
 	log      *slog.Logger
 	Bot      *bot.Bot
-	Database *sqlx.DB
+	Database *postgres.Storage
 	Client   *event.Client
 }
 
@@ -29,11 +27,11 @@ func NewApp(log *slog.Logger) *App {
 	client := newClient(log, cfg)
 	// Создаём подключение к базе данных
 	db := dbConn(log, cfg)
-	// Инициализируем слои (сервисный и для взаимодействия с базой данных)
-	repo := postgres.NewUserRepository(db, log)
-	srvc := service.NewService(log, client, client, repo)
+	// Инициализируем сервисный слой
+	srvc := service.NewService(log, client, client, db)
 
 	b := newBot(log, cfg, srvc)
+
 	return &App{
 		log:      log,
 		Bot:      b,
@@ -52,7 +50,7 @@ func (app *App) MustStart() {
 func (app *App) Stop() {
 	app.log.Info("shutting down...")
 	app.Bot.Stop()
-	database.Close(app.Database, app.log)
+	app.Database.Close()
 }
 
 // newCfg обёртка для инициализации объекта конфигурации
@@ -63,8 +61,8 @@ func newCfg(log *slog.Logger) *config.Config {
 }
 
 // dbConn обёртка для установки соединения к базе данных
-func dbConn(log *slog.Logger, cfg *config.Config) *sqlx.DB {
-	db, err := database.Connect(cfg.GetDatabaseDriverName(), cfg.GetDatabasePath(), log)
+func dbConn(log *slog.Logger, cfg *config.Config) *postgres.Storage {
+	db, err := postgres.NewStorage(log, cfg.GetDatabaseDriverName(), cfg.GetDatabasePath())
 	if err != nil {
 		log.Error("failed to connect database", "error", err)
 		os.Exit(1)
