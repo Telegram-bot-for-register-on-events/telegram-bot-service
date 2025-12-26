@@ -9,8 +9,16 @@ import (
 	pb "github.com/Telegram-bot-for-register-on-events/shared-proto/pb/event"
 )
 
-// UserService описывает сервисный слой микросервиса
-type UserService struct {
+// Константы для описания операций
+const (
+	opSaveUserInfo = "service.SaveUserInfo"
+	opGetEvents    = "service.GetEvents"
+	opGetEvent     = "service.GetEvent"
+	opRegisterUser = "service.RegisterUser"
+)
+
+// Service описывает сервисный слой микросервиса
+type Service struct {
 	log           *slog.Logger
 	eventReceiver EventReceiver
 	userRegister  UserRegister
@@ -33,9 +41,9 @@ type UserSaver interface {
 	SaveUserInfo(ctx context.Context, chatID int64, username string) error
 }
 
-// NewUserService конструктор для создания UserService
-func NewUserService(log *slog.Logger, eventReceiver EventReceiver, userRegister UserRegister, userSaver UserSaver) *UserService {
-	return &UserService{
+// NewService конструктор для создания Service
+func NewService(log *slog.Logger, eventReceiver EventReceiver, userRegister UserRegister, userSaver UserSaver) *Service {
+	return &Service{
 		log:           log,
 		eventReceiver: eventReceiver,
 		userRegister:  userRegister,
@@ -44,73 +52,92 @@ func NewUserService(log *slog.Logger, eventReceiver EventReceiver, userRegister 
 }
 
 // SaveUserInfo проводит валидацию входных данных и передаёт их в слой взаимодействия с базой данных
-func (s *UserService) SaveUserInfo(ctx context.Context, chatID int64, username string) error {
-	if chatID == 0 {
-		s.log.Error("chatID cannot be equal to 0")
-		return errors.New("chatID cannot be equal to 0")
-	} else if chatID < -999999999999999 || chatID > 999999999999999 {
-		return errors.New("chatID out of range")
+func (s *Service) SaveUserInfo(ctx context.Context, chatID int64, username string) error {
+	if err := validateChatID(chatID); err != nil {
+		s.log.Error("invalid chatID")
+		return err
 	}
 
-	if username == "" {
-		return errors.New("username cannot be empty")
-	} else if len(username) < 5 || len(username) > 32 {
-		return errors.New("username length must be between 5 and 32")
+	if err := validateUsername(username); err != nil {
+		s.log.Error("invalid username")
+		return err
 	}
 
 	err := s.userSaver.SaveUserInfo(ctx, chatID, username)
 	if err != nil {
-		return fmt.Errorf("error save user info in service - %w", err)
+		return fmt.Errorf("%s: %w", opSaveUserInfo, err)
 	}
 	return nil
 }
 
 // GetEvents отправляет данные для получения всех событий
-func (s *UserService) GetEvents(ctx context.Context) ([]*pb.Event, error) {
+func (s *Service) GetEvents(ctx context.Context) ([]*pb.Event, error) {
 	events, err := s.eventReceiver.GetEvents(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("error getting events - %w", err)
+		return nil, fmt.Errorf("%s: %w", opGetEvents, err)
 	}
 	return events, nil
 }
 
 // GetEvent проводит валидацию входных данных и отправляет их для получения конкретного события
-func (s *UserService) GetEvent(ctx context.Context, eventID string) (*pb.Event, error) {
-	if eventID == "" {
-		s.log.Error("eventID cannot be empty")
-		return nil, errors.New("eventID cannot be empty")
+func (s *Service) GetEvent(ctx context.Context, eventID string) (*pb.Event, error) {
+	if err := validateEventID(eventID); err != nil {
+		s.log.Error("invalid eventID")
+		return nil, err
 	}
 
 	event, err := s.eventReceiver.GetEvent(ctx, eventID)
 	if err != nil {
-		return nil, fmt.Errorf("error getting event - %w", err)
+		return nil, fmt.Errorf("%s: %w", opGetEvent, err)
 	}
 	return event, nil
 }
 
 // RegisterUser валидирует входные данные и отправляет их для регистрации пользователя на конкретное событие
-func (s *UserService) RegisterUser(ctx context.Context, eventID string, chatID int64, username string) (bool, error) {
-	if eventID == "" {
-		s.log.Error("eventID cannot be empty")
-		return false, errors.New("eventID cannot be empty")
+func (s *Service) RegisterUser(ctx context.Context, eventID string, chatID int64, username string) (bool, error) {
+	if err := validateEventID(eventID); err != nil {
+		s.log.Error("invalid eventID")
+		return false, err
 	}
 
-	if chatID == 0 {
-		s.log.Error("chatID cannot be equal to 0")
-		return false, errors.New("chatID cannot be equal to 0")
-	} else if chatID < -999999999999999 || chatID > 999999999999999 {
-		return false, errors.New("chatID out of range")
+	if err := validateUsername(username); err != nil {
+		s.log.Error("invalid username")
+		return false, err
 	}
 
-	if username == "" {
-		return false, errors.New("username cannot be empty")
-	} else if len(username) < 5 || len(username) > 32 {
-		return false, errors.New("username length must be between 5 and 32")
+	if err := validateChatID(chatID); err != nil {
+		s.log.Error("invalid chatID")
+		return false, err
 	}
 
 	result, err := s.userRegister.RegisterUser(ctx, eventID, chatID, username)
 	if err != nil {
-		return false, fmt.Errorf("error registering user - %w", err)
+		return false, fmt.Errorf("%s: %w", opRegisterUser, err)
 	}
 	return result, nil
+}
+
+func validateUsername(username string) error {
+	if username == "" {
+		return errors.New("username cannot be empty")
+	} else if len(username) < 5 || len(username) > 32 {
+		return errors.New("username length must be between 5 and 32")
+	}
+	return nil
+}
+
+func validateChatID(chatID int64) error {
+	if chatID == 0 {
+		return errors.New("chatID cannot be equal to 0")
+	} else if chatID < -999999999999999 || chatID > 999999999999999 {
+		return errors.New("chatID out of range")
+	}
+	return nil
+}
+
+func validateEventID(eventID string) error {
+	if eventID == "" {
+		return errors.New("eventID cannot be empty")
+	}
+	return nil
 }
