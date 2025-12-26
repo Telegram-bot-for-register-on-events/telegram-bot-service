@@ -17,7 +17,7 @@ func MainKeyboard() tgbotapi.ReplyKeyboardMarkup {
 func EventsKeyboard(events []EventButton) tgbotapi.InlineKeyboardMarkup {
 	var rows [][]tgbotapi.InlineKeyboardButton
 	for _, event := range events {
-		row := []tgbotapi.InlineKeyboardButton{tgbotapi.NewInlineKeyboardButtonData(event.EventID, event.Title)}
+		row := []tgbotapi.InlineKeyboardButton{tgbotapi.NewInlineKeyboardButtonData(event.Title, event.EventID)}
 		rows = append(rows, row)
 	}
 	return tgbotapi.NewInlineKeyboardMarkup(rows...)
