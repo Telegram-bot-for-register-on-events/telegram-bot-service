@@ -1,4 +1,4 @@
-package bot
+package keyboard
 
 import tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 
@@ -8,13 +8,13 @@ type EventButton struct {
 	Title   string
 }
 
-// mainKeyboard основная клавиатура "внизу экрана" для получения предстоящих событий
-func mainKeyboard() tgbotapi.ReplyKeyboardMarkup {
+// MainKeyboard основная клавиатура "внизу экрана" для получения предстоящих событий
+func MainKeyboard() tgbotapi.ReplyKeyboardMarkup {
 	return tgbotapi.NewReplyKeyboard(tgbotapi.NewKeyboardButtonRow(tgbotapi.NewKeyboardButton("Посмотреть предстоящие события")))
 }
 
-// eventsKeyboard клавиатура "в сообщении" позволяет увидеть события
-func eventsKeyboard(events []EventButton) tgbotapi.InlineKeyboardMarkup {
+// EventsKeyboard клавиатура "в сообщении" позволяет увидеть события
+func EventsKeyboard(events []EventButton) tgbotapi.InlineKeyboardMarkup {
 	var rows [][]tgbotapi.InlineKeyboardButton
 	for _, event := range events {
 		row := []tgbotapi.InlineKeyboardButton{tgbotapi.NewInlineKeyboardButtonData(event.EventID, event.Title)}
@@ -23,8 +23,8 @@ func eventsKeyboard(events []EventButton) tgbotapi.InlineKeyboardMarkup {
 	return tgbotapi.NewInlineKeyboardMarkup(rows...)
 }
 
-// eventDetailKeyboard клавиатура, которая показывает детальную информацию о событии, позволяет записаться на него
-func eventDetailKeyboard(eventID string) tgbotapi.InlineKeyboardMarkup {
+// EventDetailKeyboard клавиатура, которая показывает детальную информацию о событии, позволяет записаться на него
+func EventDetailKeyboard(eventID string) tgbotapi.InlineKeyboardMarkup {
 	return tgbotapi.NewInlineKeyboardMarkup(
 		tgbotapi.NewInlineKeyboardRow(
 			tgbotapi.NewInlineKeyboardButtonData(
@@ -34,7 +34,7 @@ func eventDetailKeyboard(eventID string) tgbotapi.InlineKeyboardMarkup {
 	)
 }
 
-// replyKeyboardRemove позволяет убрать inline клавиатуру (внизу экрана)
-func replyKeyboardRemove() tgbotapi.ReplyKeyboardRemove {
+// ReplyKeyboardRemove позволяет убрать inline клавиатуру (внизу экрана)
+func ReplyKeyboardRemove() tgbotapi.ReplyKeyboardRemove {
 	return tgbotapi.NewRemoveKeyboard(true)
 }
