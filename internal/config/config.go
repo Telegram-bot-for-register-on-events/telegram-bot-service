@@ -9,6 +9,11 @@ import (
 	"github.com/joho/godotenv"
 )
 
+// Константы для описания операций
+const (
+	opLoadConfig = "config.load"
+)
+
 // Config описывает конфигурацию микросервиса
 type Config struct {
 	telegramBotConfig *telegramBotConfig
@@ -23,7 +28,8 @@ type telegramBotConfig struct {
 
 // databaseConfig описывает конфигурацию базы данных
 type databaseConfig struct {
-	path string
+	driverName string
+	path       string
 }
 
 // gRPCClientConfig описывает конфигурацию gRPC-клиента
@@ -49,7 +55,12 @@ func newDatabaseConfig(log *slog.Logger) (*databaseConfig, error) {
 		log.Error("dsn cannot be empty")
 		return nil, errors.New("dsn cannot be empty")
 	}
-	dbCfg := &databaseConfig{path: path}
+	driverName := getEnv("DB_DRIVER_NAME", "")
+	if driverName == "" {
+		log.Error("database driver name cannot be empty")
+		return nil, errors.New("database driver name cannot be empty")
+	}
+	dbCfg := &databaseConfig{path: path, driverName: driverName}
 	return dbCfg, nil
 }
 
@@ -77,27 +88,27 @@ func LoadConfig(log *slog.Logger) (*Config, error) {
 	log.Info("loading environment variables")
 	// Загрузка переменных окружения из .env
 	if err := godotenv.Load(); err != nil {
-		log.Error("error load config", err.Error())
-		return nil, fmt.Errorf("error load config - %w", err)
+		log.Error("operation", opLoadConfig, err.Error())
+		return nil, fmt.Errorf("%s: %w", opLoadConfig, err)
 	}
 	log.Info("environment variables successfully loaded")
 
 	// Создаём конфигурацию базы данных
 	dbCfg, err := newDatabaseConfig(log)
 	if err != nil {
-		log.Error("error load config", err.Error())
+		log.Error("operation", opLoadConfig, err.Error())
 		return nil, err
 	}
 	// Создаём конфигурацию телеграм-бота
 	tgBotCfg, err := newTelegramBotConfig(log)
 	if err != nil {
-		log.Error("error load config", err.Error())
+		log.Error("operation", opLoadConfig, err.Error())
 		return nil, err
 	}
 	// Создаём конфигурацию gRPC-клиента
 	gRPCCfg, err := newGRPCClientConfig(log)
 	if err != nil {
-		log.Error("error load config", err.Error())
+		log.Error("operation", opLoadConfig, err.Error())
 		return nil, err
 	}
 
@@ -125,6 +136,11 @@ func (c *Config) GetTelegramBotToken() string {
 // GetDatabasePath геттер, для получения пути подключения к базе данных
 func (c *Config) GetDatabasePath() string {
 	return c.databaseConfig.path
+}
+
+// GetDatabaseDriverName геттер для получения драйвера базы данных
+func (c *Config) GetDatabaseDriverName() string {
+	return c.databaseConfig.driverName
 }
 
 // GetGRPCAddress геттер, для получения адреса gRPC-сервера
