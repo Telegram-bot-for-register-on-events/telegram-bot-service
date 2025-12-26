@@ -8,8 +8,8 @@ import (
 	"github.com/Telegram-bot-for-register-on-events/telegram-bot-service/internal/client/event"
 	"github.com/Telegram-bot-for-register-on-events/telegram-bot-service/internal/config"
 	"github.com/Telegram-bot-for-register-on-events/telegram-bot-service/internal/database"
-	"github.com/Telegram-bot-for-register-on-events/telegram-bot-service/internal/repository"
 	"github.com/Telegram-bot-for-register-on-events/telegram-bot-service/internal/service"
+	"github.com/Telegram-bot-for-register-on-events/telegram-bot-service/internal/storage/postgres"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -30,8 +30,8 @@ func NewApp(log *slog.Logger) *App {
 	// Создаём подключение к базе данных
 	db := dbConn(log, cfg)
 	// Инициализируем слои (сервисный и для взаимодействия с базой данных)
-	repo := repository.NewUserRepository(db, log)
-	srvc := service.NewUserService(log, client, client, repo)
+	repo := postgres.NewUserRepository(db, log)
+	srvc := service.NewService(log, client, client, repo)
 
 	b := newBot(log, cfg, srvc)
 	return &App{
@@ -64,7 +64,7 @@ func newCfg(log *slog.Logger) *config.Config {
 
 // dbConn обёртка для установки соединения к базе данных
 func dbConn(log *slog.Logger, cfg *config.Config) *sqlx.DB {
-	db, err := database.Connect(cfg.GetDatabasePath(), log)
+	db, err := database.Connect(cfg.GetDatabaseDriverName(), cfg.GetDatabasePath(), log)
 	if err != nil {
 		log.Error("failed to connect database", "error", err)
 		os.Exit(1)
@@ -74,7 +74,7 @@ func dbConn(log *slog.Logger, cfg *config.Config) *sqlx.DB {
 }
 
 // newBot обёртка для создания нового экземпляра BotAPI по токену
-func newBot(log *slog.Logger, cfg *config.Config, srvc *service.UserService) *bot.Bot {
+func newBot(log *slog.Logger, cfg *config.Config, srvc *service.Service) *bot.Bot {
 	b, err := bot.NewBot(log, cfg.GetTelegramBotToken(), srvc)
 	if err != nil {
 		log.Error("failed to create bot", "error", err)
