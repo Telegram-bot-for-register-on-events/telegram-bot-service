@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
+	_ "github.com/lib/pq"
 )
 
 // Константы для описания операций
@@ -21,24 +22,50 @@ type User struct {
 	CreatedAt time.Time `db:"created_at"`
 }
 
-// UserRepository описывает объект базы данных
-type UserRepository struct {
+// Storage описывает объект базы данных
+type Storage struct {
 	log *slog.Logger
-	db  *sqlx.DB
+	DB  *sqlx.DB
 }
 
-// NewUserRepository конструктор для создания UserRepository
-func NewUserRepository(db *sqlx.DB, log *slog.Logger) *UserRepository {
-	return &UserRepository{
-		db:  db,
+// Константы для описания операций
+const (
+	opConnect         = "postgres.connect"
+	opCloseConnection = "postgres.closeConnection"
+)
+
+// NewStorage устанавливает соединение с базой данных, конструктор для Storage
+func NewStorage(log *slog.Logger, driverName, dsn string) (*Storage, error) {
+	db, err := sqlx.Open(driverName, dsn)
+	if err != nil {
+		log.Error("operation", opConnect, err.Error())
+		return nil, fmt.Errorf("%s: %w", opConnect, err)
+	}
+
+	// Проверяем подключение к базе данных, в противном случае возвращаем ошибку
+	if err = db.Ping(); err != nil {
+		log.Error("operation", opConnect, err.Error())
+		return nil, fmt.Errorf("%s: %w", opConnect, err)
+	}
+
+	return &Storage{
+		DB:  db,
 		log: log,
+	}, nil
+}
+
+// Close закрывает соединение с базой данных
+func (s *Storage) Close() {
+	s.log.Info("operation", opCloseConnection)
+	if err := s.DB.Close(); err != nil {
+		s.log.Error("closing database connection", err.Error())
 	}
 }
 
 // SaveUserInfo метод для сохранения информации в базе данных
-func (repo *UserRepository) SaveUserInfo(ctx context.Context, chatID int64, username string) error {
+func (s *Storage) SaveUserInfo(ctx context.Context, chatID int64, username string) error {
 	// Выполняем INSERT-запрос
-	_, err := repo.db.NamedExecContext(ctx,
+	_, err := s.DB.NamedExecContext(ctx,
 		"insert into users (chat_id, username, created_at) values (:chat_id, :username, :created_at) on conflict (chat_id) do nothing",
 		User{
 			ChatID:    chatID,
@@ -48,7 +75,7 @@ func (repo *UserRepository) SaveUserInfo(ctx context.Context, chatID int64, user
 	)
 
 	if err != nil {
-		repo.log.Error("operation", opSaveUserInfo, err.Error())
+		s.log.Error("operation", opSaveUserInfo, err.Error())
 		return fmt.Errorf("%s: %w", opSaveUserInfo, err)
 	}
 
