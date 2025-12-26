@@ -16,7 +16,6 @@ func main() {
 	application := app.NewApp(log)
 	// Запускаем его
 	application.MustStart()
-
 	// Создаём канал для приёма сигналов операционной системы
 	stop := make(chan os.Signal, 1)
 	// Передаём входящие сигналы в канал stop

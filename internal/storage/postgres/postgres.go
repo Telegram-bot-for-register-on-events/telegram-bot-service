@@ -9,6 +9,11 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+// Константы для описания операций
+const (
+	opSaveUserInfo = "repo.SaveUserInfo"
+)
+
 // User описывает данные о пользователе, необходимые для сохранения
 type User struct {
 	ChatID    int64     `db:"chat_id"`
@@ -43,8 +48,8 @@ func (repo *UserRepository) SaveUserInfo(ctx context.Context, chatID int64, user
 	)
 
 	if err != nil {
-		repo.log.Error("error save user info", err.Error())
-		return fmt.Errorf("error save user info in repo - %w", err)
+		repo.log.Error("operation", opSaveUserInfo, err.Error())
+		return fmt.Errorf("%s: %w", opSaveUserInfo, err)
 	}
 
 	return nil
