@@ -17,7 +17,7 @@ func MainKeyboard() tgbotapi.ReplyKeyboardMarkup {
 func EventsKeyboard(events []EventButton) tgbotapi.InlineKeyboardMarkup {
 	var rows [][]tgbotapi.InlineKeyboardButton
 	for _, event := range events {
-		row := []tgbotapi.InlineKeyboardButton{tgbotapi.NewInlineKeyboardButtonData(event.Title, event.EventID)}
+		row := []tgbotapi.InlineKeyboardButton{tgbotapi.NewInlineKeyboardButtonData(event.Title, "event_"+event.EventID)}
 		rows = append(rows, row)
 	}
 	return tgbotapi.NewInlineKeyboardMarkup(rows...)
@@ -28,13 +28,13 @@ func EventDetailKeyboard(eventID string) tgbotapi.InlineKeyboardMarkup {
 	return tgbotapi.NewInlineKeyboardMarkup(
 		tgbotapi.NewInlineKeyboardRow(
 			tgbotapi.NewInlineKeyboardButtonData(
-				"Записаться", "event_"+eventID),
+				"Зарегистрироваться", "register_"+eventID),
 			tgbotapi.NewInlineKeyboardButtonData("Назад", "back_to_events"),
 		),
 	)
 }
 
-// ReplyKeyboardRemove позволяет убрать inline клавиатуру (внизу экрана)
-func ReplyKeyboardRemove() tgbotapi.ReplyKeyboardRemove {
-	return tgbotapi.NewRemoveKeyboard(true)
+// BackToSeeEvents возвращает к просмотру событий после регистрации
+func BackToSeeEvents() tgbotapi.InlineKeyboardMarkup {
+	return tgbotapi.NewInlineKeyboardMarkup(tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData("Продолжить просмотр событий", "back_to_events")))
 }
