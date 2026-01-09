@@ -88,7 +88,7 @@ func LoadConfig(log *slog.Logger) (*Config, error) {
 	log.Info("loading environment variables")
 	// Загрузка переменных окружения из .env
 	if err := godotenv.Load(); err != nil {
-		log.Error("operation", opLoadConfig, err.Error())
+		log.Error("error", err.Error(), slog.String("operation", opLoadConfig))
 		return nil, fmt.Errorf("%s: %w", opLoadConfig, err)
 	}
 	log.Info("environment variables successfully loaded")
@@ -96,19 +96,19 @@ func LoadConfig(log *slog.Logger) (*Config, error) {
 	// Создаём конфигурацию базы данных
 	dbCfg, err := newDatabaseConfig(log)
 	if err != nil {
-		log.Error("operation", opLoadConfig, err.Error())
+		log.Error("error", err.Error(), slog.String("operation", opLoadConfig))
 		return nil, err
 	}
 	// Создаём конфигурацию телеграм-бота
 	tgBotCfg, err := newTelegramBotConfig(log)
 	if err != nil {
-		log.Error("operation", opLoadConfig, err.Error())
+
 		return nil, err
 	}
 	// Создаём конфигурацию gRPC-клиента
 	gRPCCfg, err := newGRPCClientConfig(log)
 	if err != nil {
-		log.Error("operation", opLoadConfig, err.Error())
+		log.Error("error", err.Error(), slog.String("operation", opLoadConfig))
 		return nil, err
 	}
 

@@ -9,6 +9,10 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
+const (
+	opNewClient = "event.NewClient"
+)
+
 // Client описывает gRPC-клиент для взаимодействия с микросервисом событий
 type Client struct {
 	log    *slog.Logger
@@ -21,10 +25,9 @@ func NewClient(log *slog.Logger, address string) (*Client, error) {
 	// Устанавливаем gRPC-соединение
 	conn, err := grpc.NewClient(address, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
-		log.Error("error connection to event gRPC-server", slog.String("address", address), slog.String("error", err.Error()))
-		return nil, fmt.Errorf("error connection to event gRPC server: %w", err)
+		log.Error("error", err.Error(), slog.String("operation", opNewClient))
+		return nil, fmt.Errorf("%s: %w", opNewClient, err)
 	}
-	log.Info("connected to event gRPC server successfully")
 
 	return &Client{
 		log:    log,

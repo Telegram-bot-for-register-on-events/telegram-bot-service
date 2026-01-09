@@ -1,6 +1,10 @@
 package keyboard
 
-import tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+import (
+	"strconv"
+
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+)
 
 // EventButton описывает информацию, содержащуюся в "кнопке"
 type EventButton struct {
@@ -14,12 +18,26 @@ func MainKeyboard() tgbotapi.ReplyKeyboardMarkup {
 }
 
 // EventsKeyboard клавиатура "в сообщении" позволяет увидеть события
-func EventsKeyboard(events []EventButton) tgbotapi.InlineKeyboardMarkup {
+func EventsKeyboard(events []EventButton, numPage, pageSize, countEvents int) tgbotapi.InlineKeyboardMarkup {
 	var rows [][]tgbotapi.InlineKeyboardButton
+	var navigationRow []tgbotapi.InlineKeyboardButton
 	for _, event := range events {
 		row := []tgbotapi.InlineKeyboardButton{tgbotapi.NewInlineKeyboardButtonData(event.Title, "event_"+event.EventID)}
 		rows = append(rows, row)
 	}
+
+	if numPage > 0 {
+		navigationRow = append(navigationRow, tgbotapi.NewInlineKeyboardButtonData("Назад", "page_"+strconv.Itoa(numPage-1)))
+	}
+
+	if (numPage+1)*pageSize < countEvents {
+		navigationRow = append(navigationRow, tgbotapi.NewInlineKeyboardButtonData("Вперёд", "page_"+strconv.Itoa(numPage+1)))
+	}
+
+	if len(navigationRow) > 0 {
+		rows = append(rows, navigationRow)
+	}
+
 	return tgbotapi.NewInlineKeyboardMarkup(rows...)
 }
 

@@ -1,5 +1,8 @@
 services:
   telegram-db:
+    networks:
+      - shared-net
+    container_name: postgres-tg
     image: postgres:16
     environment:
       POSTGRES_USER: postgres
@@ -8,7 +11,45 @@ services:
     ports:
       - 5432:5432
     volumes:
-      - telegram-db-data:/var/lib/postgresql/data
+      - telegram-db-data:/var/lib/postgresql/data\
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d telegram-bot-service" ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  migrate:
+    networks:
+      - shared-net
+    build: .
+    command: ["/app/migrator", "up"]
+    environment:
+      - DSN=postgres://postgres:postgres@telegram-db:5432/telegram-bot-service?sslmode=disable
+      - DIR=internal/storage/postgres/migrations
+    depends_on:
+      telegram-db:
+        condition: service_healthy
+    restart: on-failure
+
+  bot:
+    networks:
+      - shared-net
+    build: .
+    command: ["/app/bot"]
+    environment:
+      - DB_DRIVER_NAME=postgres
+      - DSN=postgres://postgres:postgres@telegram-db:5432/telegram-bot-service?sslmode=disable
+      - TELEGRAM_BOT_TOKEN=8268532146:AAFdfb3BGNNixzhTxHIgTceT2oT0VlUj6RE
+      - GRPC_ADDRESS=event:8001
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+networks:
+  shared-net:
+    name: shared-services-net
+    external: true
 
 volumes:
   telegram-db-data:

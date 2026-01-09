@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strconv"
 	"strings"
 	"time"
 
@@ -20,11 +21,11 @@ type Service interface {
 	SaveUserInfo(ctx context.Context, chatID int64, username string) error
 }
 
-// Sender описывает метод для отправки сообщений пользователю и telegram'у
+// Sender описывает методы для отправки сообщений пользователю и telegram'у
 type Sender interface {
-	// Send Для отправки сообщений пользователю
+	// Send для отправки сообщений пользователю
 	Send(c tgbotapi.Chattable) (tgbotapi.Message, error)
-	// Request Для отправки callback'ов
+	// Request для отправки callback'ов
 	Request(c tgbotapi.Chattable) (*tgbotapi.APIResponse, error)
 }
 
@@ -69,9 +70,12 @@ func (h *Handler) handleMessage(ctx context.Context, msg *tgbotapi.Message) erro
 
 // handleCallbackQuery обработчик нажатий на inline-кнопки
 func (h *Handler) handleCallbackQuery(ctx context.Context, callback *tgbotapi.CallbackQuery) error {
-	h.log.Info("handling callback query", slog.String("data", callback.Data), slog.Int64("chat_id", callback.Message.Chat.ID), slog.Int("message_id", callback.Message.MessageID))
+	h.log.Info("handling callback query", slog.String("data", callback.Data), slog.Int64("chat_id", callback.Message.Chat.ID))
 
-	h.answerCallback(callback.ID)
+	if err := h.answerCallback(callback.ID); err != nil {
+		h.log.Error("failed to answer callback", slog.String("error", err.Error()))
+	}
+	
 	dataSplit := strings.Split(callback.Data, "_")
 	switch dataSplit[0] {
 	case "event":
@@ -80,17 +84,22 @@ func (h *Handler) handleCallbackQuery(ctx context.Context, callback *tgbotapi.Ca
 		return h.backToEvents(ctx, callback)
 	case "register":
 		return h.register(ctx, callback)
+	case "page":
+		numPage, _ := strconv.Atoi(dataSplit[1])
+		return h.showEventsPage(ctx, callback.Message.Chat.ID, callback.Message.MessageID, numPage)
 	}
 	return nil
 }
 
 // answerCallback отвечает telegram, что callback получен
-func (h *Handler) answerCallback(callbackID string) {
+func (h *Handler) answerCallback(callbackID string) error {
 	answer := tgbotapi.NewCallback(callbackID, "")
 	_, err := h.sender.Request(answer)
 	if err != nil {
-		h.log.Error("error send answer", err.Error())
+		h.log.Error("error answer callback", slog.String("error", err.Error()))
+		return err
 	}
+	return nil
 }
 
 // handleCommand метод для обработки команд
@@ -131,7 +140,7 @@ func (h *Handler) startMessage(ctx context.Context, msg *tgbotapi.Message) error
 	// Отправляем ответ пользователю
 	_, err := h.sender.Send(answer)
 	if err != nil {
-		h.log.Error("error send answer", err.Error())
+		h.log.Error("error answer on command", slog.String("error", err.Error()))
 		return err
 	}
 	return nil
@@ -139,48 +148,89 @@ func (h *Handler) startMessage(ctx context.Context, msg *tgbotapi.Message) error
 
 // showEvents обработчик для команды /getEvents
 func (h *Handler) showEvents(ctx context.Context, msg *tgbotapi.Message) error {
-	// Отправляем данные в сервисный слой, в случае ошибки - отправляем пользователю соответствующее сообщение
-	events, err := h.service.GetEvents(ctx)
+	eventsButtons, countEvents, err := h.gettingEventsForPage(ctx, msg.Chat.ID, 0)
 	if err != nil {
-		errMsg := tgbotapi.NewMessage(msg.Chat.ID, "Произошла ошибка")
-		_, err = h.sender.Send(errMsg)
-		if err != nil {
-			h.log.Error("error send answer", err.Error())
-			return err
-		}
 		return err
 	}
 
+	message := tgbotapi.NewMessage(msg.Chat.ID, "Выберите событие, для просмотра детальной информации")
+	message.ReplyMarkup = keyboard.EventsKeyboard(eventsButtons, 0, 5, countEvents)
+	message.ParseMode = tgbotapi.ModeMarkdown
+
+	_, err = h.sender.Send(message)
+	if err != nil {
+		h.log.Error("error answer on command", slog.String("error", err.Error()))
+		return err
+	}
+	return nil
+}
+
+// showEventsPage отображает конкретную "страницу" со списком событий
+func (h *Handler) showEventsPage(ctx context.Context, chatID int64, messageID int, numPage int) error {
+	eventsButtons, countEvents, err := h.gettingEventsForPage(ctx, chatID, numPage)
+	if err != nil {
+		return err
+	}
+
+	message := tgbotapi.NewEditMessageTextAndMarkup(chatID, messageID, "Выберите событие, для просмотра детальной информации", keyboard.EventsKeyboard(eventsButtons, numPage, 5, countEvents))
+	message.ParseMode = tgbotapi.ModeMarkdown
+
+	_, err = h.sender.Send(message)
+	if err != nil {
+		h.log.Error("error answer callback", slog.String("error", err.Error()))
+		return err
+	}
+	return nil
+
+}
+
+// gettingEventsForPage метод для получения событий и формирования рядов с ними
+func (h *Handler) gettingEventsForPage(ctx context.Context, chatID int64, numPage int) ([]keyboard.EventButton, int, error) {
+	// Отправляем данные в сервисный слой, в случае ошибки - отправляем пользователю соответствующее сообщение
+	events, err := h.service.GetEvents(ctx)
+	if err != nil {
+		errMsg := tgbotapi.NewMessage(chatID, "Произошла ошибка")
+		_, err = h.sender.Send(errMsg)
+		if err != nil {
+			h.log.Error("error send answer about error", slog.String("error", err.Error()))
+			return nil, 0, err
+		}
+		return nil, 0, err
+	}
+
 	if len(events) == 0 {
-		noEventsMsg := tgbotapi.NewMessage(msg.Chat.ID, "К сожалению, событий не найдено")
+		noEventsMsg := tgbotapi.NewMessage(chatID, "К сожалению, событий не найдено")
 		noEventsMsg.ReplyMarkup = keyboard.MainKeyboard()
 		_, err = h.sender.Send(noEventsMsg)
 		if err != nil {
-			h.log.Error("error send answer", err.Error())
-			return err
+			h.log.Error("error send answer about error", slog.String("error", err.Error()))
+			return nil, 0, err
 		}
-		return nil
 	}
+
+	countEvents := len(events)
+	start := numPage * 5
+	end := start + 5
+
+	if start >= countEvents {
+		start = 0
+	}
+	if end > countEvents {
+		end = countEvents
+	}
+
+	pageEvents := events[start:end]
 
 	// Создаём "кнопки" с соответствующими данными
 	var eventsButtons []keyboard.EventButton
-	for _, e := range events {
+	for _, e := range pageEvents {
 		eventsButtons = append(eventsButtons, keyboard.EventButton{
 			EventID: e.Id,
 			Title:   e.Title,
 		})
 	}
 
-	message := tgbotapi.NewMessage(msg.Chat.ID, "Выберите событие, для просмотра детальной информации")
-	message.ParseMode = tgbotapi.ModeMarkdown
-	// Добавляем клавиатуру с событиями
-	message.ReplyMarkup = keyboard.EventsKeyboard(eventsButtons)
-	_, err = h.sender.Send(message)
-	if err != nil {
-		h.log.Error("error send answer", err.Error())
-		return err
-	}
-	return nil
+	return eventsButtons, countEvents, nil
 }
 
 // showEventDetails показывает детали события
@@ -192,7 +242,7 @@ func (h *Handler) showEventDetails(ctx context.Context, callback *tgbotapi.Callb
 		errEventsDetails.ReplyMarkup = keyboard.MainKeyboard()
 		_, err = h.sender.Send(errEventsDetails)
 		if err != nil {
-			h.log.Error("error send answer", err.Error())
+			h.log.Error("error send answer about error", slog.String("error", err.Error()))
 			return err
 		}
 	}
@@ -210,42 +260,16 @@ func (h *Handler) showEventDetails(ctx context.Context, callback *tgbotapi.Callb
 
 // backToEvents обработчик для Inline-кнопки "назад" при просмотре деталей события
 func (h *Handler) backToEvents(ctx context.Context, callback *tgbotapi.CallbackQuery) error {
-	events, err := h.service.GetEvents(ctx)
+	eventsButtons, countEvents, err := h.gettingEventsForPage(ctx, callback.Message.Chat.ID, 0)
 	if err != nil {
-		errMsg := tgbotapi.NewMessage(callback.Message.Chat.ID, "Произошла ошибка. Попробуйте ещё раз")
-		_, err = h.sender.Send(errMsg)
-		if err != nil {
-			h.log.Error("error send answer", err.Error())
-			return err
-		}
 		return err
 	}
 
-	if len(events) == 0 {
-		noEventsMsg := tgbotapi.NewMessage(callback.Message.Chat.ID, "К сожалению, событий не найдено")
-		noEventsMsg.ReplyMarkup = keyboard.MainKeyboard()
-		_, err = h.sender.Send(noEventsMsg)
-		if err != nil {
-			h.log.Error("error send answer", err.Error())
-			return err
-		}
-		return nil
-	}
-
-	// Создаём "кнопки" с соответствующими данными
-	var eventsButtons []keyboard.EventButton
-	for _, e := range events {
-		eventsButtons = append(eventsButtons, keyboard.EventButton{
-			EventID: e.Id,
-			Title:   e.Title,
-		})
-	}
-
 	// Заменяем прошлое сообщение
-	message := tgbotapi.NewEditMessageTextAndMarkup(callback.Message.Chat.ID, callback.Message.MessageID, "Выберите событие, для просмотра детальной информации", keyboard.EventsKeyboard(eventsButtons))
+	message := tgbotapi.NewEditMessageTextAndMarkup(callback.Message.Chat.ID, callback.Message.MessageID, "Выберите событие, для просмотра детальной информации", keyboard.EventsKeyboard(eventsButtons, 0, 5, countEvents))
 	_, err = h.sender.Send(message)
 	if err != nil {
-		h.log.Error("error send answer", err.Error())
+		h.log.Error("error answer callback", slog.String("error", err.Error()))
 		return err
 	}
 	return nil
@@ -259,7 +283,7 @@ func (h *Handler) register(ctx context.Context, callback *tgbotapi.CallbackQuery
 		errMsg := tgbotapi.NewMessage(callback.Message.Chat.ID, "Произошла ошибка. Попробуйте ещё раз")
 		_, err = h.sender.Send(errMsg)
 		if err != nil {
-			h.log.Error("error send answer", err.Error())
+			h.log.Error("error answer about error", slog.String("error", err.Error()))
 			return err
 		}
 		return err
@@ -269,7 +293,14 @@ func (h *Handler) register(ctx context.Context, callback *tgbotapi.CallbackQuery
 		message := tgbotapi.NewEditMessageTextAndMarkup(callback.Message.Chat.ID, callback.Message.MessageID, "Вы успешно зарегистрированы!", keyboard.BackToSeeEvents())
 		_, err = h.sender.Send(message)
 		if err != nil {
-			h.log.Error("error send answer", err.Error())
+			h.log.Error("error answer on callback", slog.String("error", err.Error()))
+			return err
+		}
+	} else {
+		message := tgbotapi.NewEditMessageTextAndMarkup(callback.Message.Chat.ID, callback.Message.MessageID, "Произошла ошибка", keyboard.BackToSeeEvents())
+		_, err = h.sender.Send(message)
+		if err != nil {
+			h.log.Error("error answer about error", slog.String("error", err.Error()))
 			return err
 		}
 	}
@@ -279,5 +310,5 @@ func (h *Handler) register(ctx context.Context, callback *tgbotapi.CallbackQuery
 // formatEventInfo форматирует информацию о событии
 func formatEventInfo(e *pb.Event) string {
 	t := e.StartsAt.AsTime().Format("2006-01-02 15:04:05")
-	return fmt.Sprintf("Название: " + e.Title + "\nОписание: " + e.Description + "\nНачало: " + t)
+	return fmt.Sprintf("Название: %s\n Описание: %s\n Начало: %s", e.Title, e.Description, t)
 }

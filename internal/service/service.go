@@ -54,12 +54,12 @@ func NewService(log *slog.Logger, eventReceiver EventReceiver, userRegister User
 // SaveUserInfo проводит валидацию входных данных и передаёт их в слой взаимодействия с базой данных
 func (s *Service) SaveUserInfo(ctx context.Context, chatID int64, username string) error {
 	if err := validateChatID(chatID); err != nil {
-		s.log.Error("invalid chatID")
+		s.log.Error("error", err.Error(), slog.String("operation", opRegisterUser))
 		return err
 	}
 
 	if err := validateUsername(username); err != nil {
-		s.log.Error("invalid username")
+		s.log.Error("error", err.Error(), slog.String("operation", opRegisterUser))
 		return err
 	}
 
@@ -82,7 +82,7 @@ func (s *Service) GetEvents(ctx context.Context) ([]*pb.Event, error) {
 // GetEvent проводит валидацию входных данных и отправляет их для получения конкретного события
 func (s *Service) GetEvent(ctx context.Context, eventID string) (*pb.Event, error) {
 	if err := validateEventID(eventID); err != nil {
-		s.log.Error("invalid eventID")
+		s.log.Error("error", err.Error(), slog.String("operation", opGetEvent))
 		return nil, err
 	}
 
@@ -96,17 +96,17 @@ func (s *Service) GetEvent(ctx context.Context, eventID string) (*pb.Event, erro
 // RegisterUser валидирует входные данные и отправляет их для регистрации пользователя на конкретное событие
 func (s *Service) RegisterUser(ctx context.Context, eventID string, chatID int64, username string) (bool, error) {
 	if err := validateEventID(eventID); err != nil {
-		s.log.Error("invalid eventID")
+		s.log.Error("error", err.Error(), slog.String("operation", opRegisterUser))
 		return false, err
 	}
 
 	if err := validateUsername(username); err != nil {
-		s.log.Error("invalid username")
+		s.log.Error("error", err.Error(), slog.String("operation", opRegisterUser))
 		return false, err
 	}
 
 	if err := validateChatID(chatID); err != nil {
-		s.log.Error("invalid chatID")
+		s.log.Error("error", err.Error(), slog.String("operation", opRegisterUser))
 		return false, err
 	}
 

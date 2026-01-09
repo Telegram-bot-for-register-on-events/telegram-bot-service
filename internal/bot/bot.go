@@ -3,6 +3,8 @@ package bot
 import (
 	"context"
 	"log/slog"
+	"runtime/debug"
+	"time"
 
 	"github.com/Telegram-bot-for-register-on-events/telegram-bot-service/internal/bot/handlers"
 	"github.com/Telegram-bot-for-register-on-events/telegram-bot-service/internal/service"
@@ -13,6 +15,7 @@ import (
 const (
 	opStop      = "bot.StopListening"
 	opListening = "bot.Listening"
+	opHandling  = "bot.HandlingUpdate"
 )
 
 // Updater описывает метод для обработки новых обновлений в канале
@@ -47,19 +50,42 @@ func NewBot(log *slog.Logger, token string, service *service.Service) (*Bot, err
 func (b *Bot) start() error {
 	// Получаем все обновления, начиная с самого первого
 	u := tgbotapi.NewUpdate(0)
-	// Устанавливаем тайм-аут, в течение которого будут прослушиваться входящие сообщения
-	u.Timeout = 30
+	// Устанавливаем оффсет, чтобы отбросить старые обновления
+	u.Offset = -1
+	// Отправляем запрос на сброс
+	_, err := b.bot.Request(u)
+	if err != nil {
+		b.log.Error("failed to drop pending updates", slog.String("error", err.Error()))
+	}
+	// Ждем немного, чтобы Telegram обработал
+	time.Sleep(500 * time.Millisecond)
+	// Теперь начинаем нормальное прослушивание с актуального оффсет
+	u.Offset = 0
 	// Инициализируем канал с обновлениями и устанавливаем долгоживущее подключение к серверам Telegram
 	updates := b.bot.GetUpdatesChan(u)
 	b.log.Info("getting updates", slog.String("operation", opListening))
 	// Читаем обновления в бесконечном цикле
 	for update := range updates {
 		// Вызываем обработчик для новых обновлений
-		if err := b.updater.HandleUpdate(context.Background(), update); err != nil {
-			return err
-		}
+		go b.processingUpdates(update)
 	}
 	return nil
+}
+
+// processingUpdates ловит панику в отложенной функции через recover, создаёт контекст и запускает обработчик обновлений
+func (b *Bot) processingUpdates(update tgbotapi.Update) {
+	defer func() {
+		if r := recover(); r != nil {
+			b.log.Error("recovered from panic", slog.String("stack", string(debug.Stack())))
+		}
+	}()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	if err := b.updater.HandleUpdate(ctx, update); err != nil {
+		b.log.Error("error handling update", slog.String("operation", opHandling))
+	}
 }
 
 // MustStart обёртка для метода start, при ошибке - паникует

@@ -10,9 +10,9 @@ import (
 
 // Константы для описания операций
 const (
-	opGetEvents    = "client.GetEvents"
-	opGetEvent     = "client.GetEvent"
-	opRegisterUser = "client.RegisterUser"
+	opGetEvents    = "event.GetEvents"
+	opGetEvent     = "event.GetEvent"
+	opRegisterUser = "event.RegisterUser"
 )
 
 // GetEvents метод для получения всех событий
@@ -20,7 +20,7 @@ func (c *Client) GetEvents(ctx context.Context) ([]*pb.Event, error) {
 	// Отправляем запрос на другой микросервис
 	response, err := c.client.GetEvents(ctx, &pb.GetEventsRequest{})
 	if err != nil {
-		c.log.Error("request failed", slog.String("operation", opGetEvents), slog.String("error", err.Error()))
+		c.log.Error("error", err.Error(), slog.String("operation", opGetEvents))
 		return nil, fmt.Errorf("%s: %w", opGetEvents, err)
 	}
 	c.log.Info("getting events successfully", slog.Int("count", len(response.Events)), slog.String("operation", opGetEvents))
@@ -31,7 +31,7 @@ func (c *Client) GetEvents(ctx context.Context) ([]*pb.Event, error) {
 func (c *Client) GetEvent(ctx context.Context, eventID string) (*pb.Event, error) {
 	response, err := c.client.GetEvent(ctx, &pb.GetEventRequest{EventId: eventID})
 	if err != nil {
-		c.log.Error("request failed", slog.String("operation", opGetEvent), slog.String("error", err.Error()))
+		c.log.Error("error", err.Error(), slog.String("operation", opGetEvent))
 		return nil, fmt.Errorf("%s: %w", opGetEvent, err)
 	}
 	c.log.Info("getting event successfully", slog.String("event_id", eventID), slog.String("operation", opGetEvent))
@@ -42,9 +42,11 @@ func (c *Client) GetEvent(ctx context.Context, eventID string) (*pb.Event, error
 func (c *Client) RegisterUser(ctx context.Context, eventID string, chatID int64, username string) (bool, error) {
 	response, err := c.client.RegisterUser(ctx, &pb.RegisterUserRequest{EventId: eventID, ChatId: chatID, Username: username})
 	if err != nil {
-		c.log.Error("request failed", slog.String("operation", opRegisterUser), slog.String("error", err.Error()))
+		c.log.Error("error", err.Error(), slog.String("operation", opRegisterUser))
 		return false, fmt.Errorf("%s: %w", opRegisterUser, err)
 	}
 	c.log.Info("register user on event successfully", slog.String("event_id", eventID), slog.String("username", username), slog.String("operation", opRegisterUser))
 	return response.GetSuccess(), nil
 }
+
+// TODO: Добавить проверку и обработку на resp == nil и err == nil

@@ -38,13 +38,13 @@ const (
 func NewStorage(log *slog.Logger, driverName, dsn string) (*Storage, error) {
 	db, err := sqlx.Open(driverName, dsn)
 	if err != nil {
-		log.Error("operation", opConnect, err.Error())
+		log.Error("error", err.Error(), slog.String("operation", opConnect))
 		return nil, fmt.Errorf("%s: %w", opConnect, err)
 	}
 
 	// Проверяем подключение к базе данных, в противном случае возвращаем ошибку
 	if err = db.Ping(); err != nil {
-		log.Error("operation", opConnect, err.Error())
+		log.Error("error", err.Error(), slog.String("operation", opConnect))
 		return nil, fmt.Errorf("%s: %w", opConnect, err)
 	}
 
@@ -56,9 +56,9 @@ func NewStorage(log *slog.Logger, driverName, dsn string) (*Storage, error) {
 
 // Close закрывает соединение с базой данных
 func (s *Storage) Close() {
-	s.log.Info("operation", opCloseConnection)
+	s.log.Info("close db connection..", slog.String("operation", opCloseConnection))
 	if err := s.DB.Close(); err != nil {
-		s.log.Error("closing database connection", err.Error())
+		s.log.Error("closing database connection", slog.String("error", err.Error()))
 	}
 }
 
@@ -75,7 +75,7 @@ func (s *Storage) SaveUserInfo(ctx context.Context, chatID int64, username strin
 	)
 
 	if err != nil {
-		s.log.Error("operation", opSaveUserInfo, err.Error())
+		s.log.Error("error", err.Error(), slog.String("operation", opSaveUserInfo))
 		return fmt.Errorf("%s: %w", opSaveUserInfo, err)
 	}
 
