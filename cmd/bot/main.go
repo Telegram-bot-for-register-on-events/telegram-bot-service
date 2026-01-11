@@ -12,7 +12,7 @@ import (
 func main() {
 	// Инициализируем логгер
 	log := setupLogger()
-	// Создаём новый инстанс микросервиса
+	// Создаём приложение
 	application := app.NewApp(log)
 	// Запускаем его
 	application.MustStart()
