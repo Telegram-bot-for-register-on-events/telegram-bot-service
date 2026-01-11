@@ -13,6 +13,7 @@ import (
 	tele "gopkg.in/telebot.v3"
 )
 
+// Service описывает методы для взаимодействия с сервисным слоем
 type Service interface {
 	GetEvents(ctx context.Context) ([]*pb.Event, error)
 	GetEvent(ctx context.Context, eventID string) (*pb.Event, error)
@@ -20,11 +21,13 @@ type Service interface {
 	SaveUserInfo(ctx context.Context, chatID int64, username string) error
 }
 
+// Handler описывает слой обработчиков
 type Handler struct {
 	log     *slog.Logger
 	service Service
 }
 
+// NewHandler конструктор для Handler
 func NewHandler(log *slog.Logger, service Service, _ *tele.Bot) *Handler {
 	return &Handler{
 		log:     log,
@@ -32,12 +35,14 @@ func NewHandler(log *slog.Logger, service Service, _ *tele.Bot) *Handler {
 	}
 }
 
+// RegisterHandlers регистрирует обработчики для клавиатур и комманд
 func (h *Handler) RegisterHandlers(b *tele.Bot) {
 	b.Handle("/start", h.startMessage)
 	b.Handle(tele.OnText, h.handleText)
 	b.Handle(tele.OnCallback, h.handleCallback)
 }
 
+// startMessage обработчик для команды /start
 func (h *Handler) startMessage(c tele.Context) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
@@ -56,6 +61,7 @@ func (h *Handler) startMessage(c tele.Context) error {
 	)
 }
 
+// handleText обработчик для текстовых сообщений
 func (h *Handler) handleText(c tele.Context) error {
 	if c.Text() == "Посмотреть предстоящие события" {
 		return h.showEvents(c, 0)
@@ -63,6 +69,7 @@ func (h *Handler) handleText(c tele.Context) error {
 	return nil
 }
 
+// showEvents показывает список событий
 func (h *Handler) showEvents(c tele.Context, pageNum int) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
@@ -122,12 +129,14 @@ func (h *Handler) showEvents(c tele.Context, pageNum int) error {
 	)
 }
 
+// formatEventInfo форматирует строку с деталями информации
 func formatEventInfo(e *pb.Event) string {
 	t := e.StartsAt.AsTime().Format("02.01.2006 15:04")
 	return fmt.Sprintf("*%s*\n\n%s\n\n*Начало:* %s",
 		e.GetTitle(), e.GetDescription(), t)
 }
 
+// showEventDetails показывает детали события
 func (h *Handler) showEventDetails(c tele.Context, eventID string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
@@ -151,10 +160,12 @@ func (h *Handler) showEventDetails(c tele.Context, eventID string) error {
 	)
 }
 
+// backToEvents возвращает назад к просмотру событий
 func (h *Handler) backToEvents(c tele.Context) error {
 	return h.showEvents(c, 0)
 }
 
+// register регистрирует пользователя на событие
 func (h *Handler) register(c tele.Context, eventID string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
@@ -191,6 +202,7 @@ func (h *Handler) register(c tele.Context, eventID string) error {
 	)
 }
 
+// handleCallback обработчик callback'ов
 func (h *Handler) handleCallback(c tele.Context) error {
 	callback := c.Callback()
 
