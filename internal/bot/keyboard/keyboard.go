@@ -6,17 +6,20 @@ import (
 	tele "gopkg.in/telebot.v3"
 )
 
+// EventButton описывает "кнопку" и информацию, содержащуюся в ней
 type EventButton struct {
 	EventID string
 	Title   string
 }
 
+// MainKeyboard основная Reply-клавиатура
 func MainKeyboard() *tele.ReplyMarkup {
 	kb := &tele.ReplyMarkup{ResizeKeyboard: true}
 	kb.Reply(kb.Row(tele.Btn{Text: "Посмотреть предстоящие события"}))
 	return kb
 }
 
+// EventsKeyboard Inline-клавиатура, отображает список событий
 func EventsKeyboard(events []EventButton, numPage, pageSize, countEvents int) *tele.ReplyMarkup {
 	kb := &tele.ReplyMarkup{}
 
@@ -56,6 +59,7 @@ func EventsKeyboard(events []EventButton, numPage, pageSize, countEvents int) *t
 	return kb
 }
 
+// EventDetailKeyboard Inline-клавиатура, показывает детали события, позволяет вернуться назад или зарегистрироваться
 func EventDetailKeyboard(eventID string) *tele.ReplyMarkup {
 	kb := &tele.ReplyMarkup{}
 
@@ -69,6 +73,7 @@ func EventDetailKeyboard(eventID string) *tele.ReplyMarkup {
 	return kb
 }
 
+// BackToSeeEvents Inline-клавиатура, возвращает к скиску событий
 func BackToSeeEvents() *tele.ReplyMarkup {
 	kb := &tele.ReplyMarkup{}
 
