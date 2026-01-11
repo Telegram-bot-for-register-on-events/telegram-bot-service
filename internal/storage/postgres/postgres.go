@@ -75,7 +75,6 @@ func (s *Storage) SaveUserInfo(ctx context.Context, chatID int64, username strin
 	)
 
 	if err != nil {
-		s.log.Error("error", err.Error(), slog.String("operation", opSaveUserInfo))
 		return fmt.Errorf("%s: %w", opSaveUserInfo, err)
 	}
 

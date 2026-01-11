@@ -69,7 +69,6 @@ func (h *Handler) showEvents(c tele.Context, pageNum int) error {
 
 	events, err := h.service.GetEvents(ctx)
 	if err != nil {
-		h.log.Error("failed to get events", slog.String("error", err.Error()))
 		return c.Send("Ошибка при получении событий")
 	}
 
@@ -137,10 +136,6 @@ func (h *Handler) showEventDetails(c tele.Context, eventID string) error {
 
 	event, err := h.service.GetEvent(ctx, eventID)
 	if err != nil || event == nil {
-		h.log.Error("failed to get event",
-			slog.String("event_id", eventID),
-			slog.String("error", err.Error()))
-
 		return h.showEvents(c, 0)
 	}
 
