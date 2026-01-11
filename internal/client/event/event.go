@@ -2,10 +2,13 @@ package event
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 
 	pb "github.com/Telegram-bot-for-register-on-events/shared-proto/pb/event"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // Константы для описания операций
@@ -14,6 +17,9 @@ const (
 	opGetEvent     = "event.GetEvent"
 	opRegisterUser = "event.RegisterUser"
 )
+
+// Кастомная ошибка
+var ErrUserAlreadyExists = errors.New("user is already registered")
 
 // GetEvents метод для получения всех событий
 func (c *Client) GetEvents(ctx context.Context) ([]*pb.Event, error) {
@@ -42,11 +48,15 @@ func (c *Client) GetEvent(ctx context.Context, eventID string) (*pb.Event, error
 func (c *Client) RegisterUser(ctx context.Context, eventID string, chatID int64, username string) (bool, error) {
 	response, err := c.client.RegisterUser(ctx, &pb.RegisterUserRequest{EventId: eventID, ChatId: chatID, Username: username})
 	if err != nil {
+		if status, ok := status.FromError(err); ok {
+			switch status.Code() {
+			case codes.AlreadyExists:
+				return false, ErrUserAlreadyExists
+			}
+		}
 		c.log.Error("error", err.Error(), slog.String("operation", opRegisterUser))
 		return false, fmt.Errorf("%s: %w", opRegisterUser, err)
 	}
 	c.log.Info("register user on event successfully", slog.String("event_id", eventID), slog.String("username", username), slog.String("operation", opRegisterUser))
 	return response.GetSuccess(), nil
 }
-
-// TODO: Добавить проверку и обработку на resp == nil и err == nil

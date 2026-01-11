@@ -1,8 +1,8 @@
 -- +goose Up
 CREATE TABLE IF NOT EXISTS users (
-    chat_id     BIGINT PRIMARY KEY,
-    username    VARCHAR,
-    created_at  TIMESTAMP
+    chat_id     BIGINT NOT NULL PRIMARY KEY,
+    username    VARCHAR NOT NULL,
+    created_at  TIMESTAMP NOT NULL
     );
 
 -- +goose Down

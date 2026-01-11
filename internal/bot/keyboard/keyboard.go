@@ -3,56 +3,80 @@ package keyboard
 import (
 	"strconv"
 
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	tele "gopkg.in/telebot.v3"
 )
 
-// EventButton описывает информацию, содержащуюся в "кнопке"
 type EventButton struct {
 	EventID string
 	Title   string
 }
 
-// MainKeyboard основная клавиатура "внизу экрана" для получения предстоящих событий
-func MainKeyboard() tgbotapi.ReplyKeyboardMarkup {
-	return tgbotapi.NewReplyKeyboard(tgbotapi.NewKeyboardButtonRow(tgbotapi.NewKeyboardButton("Посмотреть предстоящие события")))
+func MainKeyboard() *tele.ReplyMarkup {
+	kb := &tele.ReplyMarkup{ResizeKeyboard: true}
+	kb.Reply(kb.Row(tele.Btn{Text: "Посмотреть предстоящие события"}))
+	return kb
 }
 
-// EventsKeyboard клавиатура "в сообщении" позволяет увидеть события
-func EventsKeyboard(events []EventButton, numPage, pageSize, countEvents int) tgbotapi.InlineKeyboardMarkup {
-	var rows [][]tgbotapi.InlineKeyboardButton
-	var navigationRow []tgbotapi.InlineKeyboardButton
-	for _, event := range events {
-		row := []tgbotapi.InlineKeyboardButton{tgbotapi.NewInlineKeyboardButtonData(event.Title, "event_"+event.EventID)}
-		rows = append(rows, row)
+func EventsKeyboard(events []EventButton, numPage, pageSize, countEvents int) *tele.ReplyMarkup {
+	kb := &tele.ReplyMarkup{}
+
+	var rows [][]tele.InlineButton
+
+	for _, e := range events {
+		btn := tele.InlineButton{
+			Text: e.Title,
+			Data: "event:" + e.EventID,
+		}
+		rows = append(rows, []tele.InlineButton{btn})
 	}
 
-	if numPage > 0 {
-		navigationRow = append(navigationRow, tgbotapi.NewInlineKeyboardButtonData("Назад", "page_"+strconv.Itoa(numPage-1)))
+	if numPage > 0 || (numPage+1)*pageSize < countEvents {
+		var navRow []tele.InlineButton
+
+		if numPage > 0 {
+			navRow = append(navRow, tele.InlineButton{
+				Text: "Назад",
+				Data: "page:" + strconv.Itoa(numPage-1),
+			})
+		}
+
+		if (numPage+1)*pageSize < countEvents {
+			navRow = append(navRow, tele.InlineButton{
+				Text: "Вперёд",
+				Data: "page:" + strconv.Itoa(numPage+1),
+			})
+		}
+
+		if len(navRow) > 0 {
+			rows = append(rows, navRow)
+		}
 	}
 
-	if (numPage+1)*pageSize < countEvents {
-		navigationRow = append(navigationRow, tgbotapi.NewInlineKeyboardButtonData("Вперёд", "page_"+strconv.Itoa(numPage+1)))
-	}
-
-	if len(navigationRow) > 0 {
-		rows = append(rows, navigationRow)
-	}
-
-	return tgbotapi.NewInlineKeyboardMarkup(rows...)
+	kb.InlineKeyboard = rows
+	return kb
 }
 
-// EventDetailKeyboard клавиатура, которая показывает детальную информацию о событии, позволяет записаться на него
-func EventDetailKeyboard(eventID string) tgbotapi.InlineKeyboardMarkup {
-	return tgbotapi.NewInlineKeyboardMarkup(
-		tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData(
-				"Зарегистрироваться", "register_"+eventID),
-			tgbotapi.NewInlineKeyboardButtonData("Назад", "back_to_events"),
-		),
-	)
+func EventDetailKeyboard(eventID string) *tele.ReplyMarkup {
+	kb := &tele.ReplyMarkup{}
+
+	kb.InlineKeyboard = [][]tele.InlineButton{
+		{
+			{Text: "Зарегистрироваться", Data: "register:" + eventID},
+			{Text: "Назад к событиям", Data: "back:"},
+		},
+	}
+
+	return kb
 }
 
-// BackToSeeEvents возвращает к просмотру событий после регистрации
-func BackToSeeEvents() tgbotapi.InlineKeyboardMarkup {
-	return tgbotapi.NewInlineKeyboardMarkup(tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData("Продолжить просмотр событий", "back_to_events")))
+func BackToSeeEvents() *tele.ReplyMarkup {
+	kb := &tele.ReplyMarkup{}
+
+	kb.InlineKeyboard = [][]tele.InlineButton{
+		{
+			{Text: "Продолжить просмотр событий", Data: "back:"},
+		},
+	}
+
+	return kb
 }

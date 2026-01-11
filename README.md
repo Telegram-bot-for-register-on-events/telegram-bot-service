@@ -22,14 +22,24 @@
  - Токен telegram-bot, полученный от @BotFather
 
 ### 1. Клонирование репозитория 
-`git clone github.com/Telegram-bot-for-register-on-events/telegram-bot-service`
-`cd telegram-bot-service`
+```bash
+   git clone github.com/Telegram-bot-for-register-on-events/telegram-bot-service
+   cd telegram-bot-service
+```
 
 ### 2. Cоздание .env
 В корне проекта выполните команду:
-`mv .envexample .env`.
+```bash
+mv .envexample .env
+```
 В поле `TELEGRAM_BOT_TOKEN` вставьте токен, полученный от @BotFather.
 
 ### 3. Запуск микросервиса
+Создайте сеть в Docker^
+```bash
+docker network create shared-services-net
+```
 В корне проекта выполните команду:
-`docker compose up -d --build`
+```bash
+docker compose up -d --build
+```

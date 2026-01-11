@@ -10,10 +10,9 @@ import (
 
 	pb "github.com/Telegram-bot-for-register-on-events/shared-proto/pb/event"
 	"github.com/Telegram-bot-for-register-on-events/telegram-bot-service/internal/bot/keyboard"
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	tele "gopkg.in/telebot.v3"
 )
 
-// Service описывает методы для взаимодействия с сервисным слоем
 type Service interface {
 	GetEvents(ctx context.Context) ([]*pb.Event, error)
 	GetEvent(ctx context.Context, eventID string) (*pb.Event, error)
@@ -21,294 +20,222 @@ type Service interface {
 	SaveUserInfo(ctx context.Context, chatID int64, username string) error
 }
 
-// Sender описывает методы для отправки сообщений пользователю и telegram'у
-type Sender interface {
-	// Send для отправки сообщений пользователю
-	Send(c tgbotapi.Chattable) (tgbotapi.Message, error)
-	// Request для отправки callback'ов
-	Request(c tgbotapi.Chattable) (*tgbotapi.APIResponse, error)
-}
-
-// Handler описывает слой обработчиков для телеграм-бота
 type Handler struct {
 	log     *slog.Logger
 	service Service
-	sender  Sender
 }
 
-// NewHandler конструктор для Handler
-func NewHandler(log *slog.Logger, service Service, sender Sender) *Handler {
+func NewHandler(log *slog.Logger, service Service, _ *tele.Bot) *Handler {
 	return &Handler{
 		log:     log,
 		service: service,
-		sender:  sender,
 	}
 }
 
-// HandleUpdate принимает входящее обновление и вызывает обработчик для него
-func (h *Handler) HandleUpdate(ctx context.Context, update tgbotapi.Update) error {
-	if update.Message != nil {
-		return h.handleMessage(ctx, update.Message)
-	}
-	if update.CallbackQuery != nil {
-		return h.handleCallbackQuery(ctx, update.CallbackQuery)
-	}
-	return nil
+func (h *Handler) RegisterHandlers(b *tele.Bot) {
+	b.Handle("/start", h.startMessage)
+	b.Handle(tele.OnText, h.handleText)
+	b.Handle(tele.OnCallback, h.handleCallback)
 }
 
-// handleMessage обработчик сообщений, проверяет, что пришло: команда или текст, и на основе этого вызывает соответствующий обработчик
-func (h *Handler) handleMessage(ctx context.Context, msg *tgbotapi.Message) error {
-	h.log.Info("handling message", slog.String("text", msg.Text), slog.Int("chat_id", int(msg.Chat.ID)))
-	if msg.IsCommand() {
-		return h.handleCommand(ctx, msg)
-	}
-	if msg.Text != "" {
-		return h.handleText(ctx, msg)
-	}
-	return nil
-}
+func (h *Handler) startMessage(c tele.Context) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
 
-// handleCallbackQuery обработчик нажатий на inline-кнопки
-func (h *Handler) handleCallbackQuery(ctx context.Context, callback *tgbotapi.CallbackQuery) error {
-	h.log.Info("handling callback query", slog.String("data", callback.Data), slog.Int64("chat_id", callback.Message.Chat.ID))
+	chatID := c.Chat().ID
+	username := c.Sender().Username
 
-	if err := h.answerCallback(callback.ID); err != nil {
-		h.log.Error("failed to answer callback", slog.String("error", err.Error()))
+	h.log.Info("saving user info", slog.Int64("chat_id", chatID), slog.String("username", username))
+	if err := h.service.SaveUserInfo(ctx, chatID, username); err != nil {
+		h.log.Error("failed to save user", slog.String("error", err.Error()))
 	}
-	
-	dataSplit := strings.Split(callback.Data, "_")
-	switch dataSplit[0] {
-	case "event":
-		return h.showEventDetails(ctx, callback)
-	case "back":
-		return h.backToEvents(ctx, callback)
-	case "register":
-		return h.register(ctx, callback)
-	case "page":
-		numPage, _ := strconv.Atoi(dataSplit[1])
-		return h.showEventsPage(ctx, callback.Message.Chat.ID, callback.Message.MessageID, numPage)
-	}
-	return nil
-}
 
-// answerCallback отвечает telegram, что callback получен
-func (h *Handler) answerCallback(callbackID string) error {
-	answer := tgbotapi.NewCallback(callbackID, "")
-	_, err := h.sender.Request(answer)
-	if err != nil {
-		h.log.Error("error answer callback", slog.String("error", err.Error()))
-		return err
-	}
-	return nil
-}
-
-// handleCommand метод для обработки команд
-func (h *Handler) handleCommand(ctx context.Context, msg *tgbotapi.Message) error {
-	h.log.Info("handling command", slog.String("command", msg.Command()), slog.Int("chat_id", int(msg.Chat.ID)))
-	switch msg.Command() {
-	case "start":
-		return h.startMessage(ctx, msg)
-	}
-	return nil
-}
-
-// handleText метод для обработки сообщений
-func (h *Handler) handleText(ctx context.Context, msg *tgbotapi.Message) error {
-	h.log.Info("handling text", slog.String("text", msg.Text), slog.Int("chat_id", int(msg.Chat.ID)))
-	switch msg.Text {
-	case "Посмотреть предстоящие события":
-		return h.showEvents(ctx, msg)
-	}
-	return nil
-}
-
-// startMessage обработчик для команды /start
-func (h *Handler) startMessage(ctx context.Context, msg *tgbotapi.Message) error {
-	// Формируем ответ для пользователя
-	answer := tgbotapi.NewMessage(msg.Chat.ID,
+	return c.Send(
 		"Привет! 👋\nЯ бот для отслеживания и регистрации на события.",
+		keyboard.MainKeyboard(),
 	)
-	// После приветствия показываем основную клавиатуру
-	answer.ReplyMarkup = keyboard.MainKeyboard()
+}
 
-	h.log.Info("saving user info", slog.Int("chat_id", int(msg.Chat.ID)), slog.String("username", msg.From.UserName), slog.Time("created_at", time.Now()))
-	// Сохраняем информацию в базу данных
-	if err := h.service.SaveUserInfo(ctx, msg.Chat.ID, msg.From.UserName); err != nil {
-		return err
-	}
-
-	// Отправляем ответ пользователю
-	_, err := h.sender.Send(answer)
-	if err != nil {
-		h.log.Error("error answer on command", slog.String("error", err.Error()))
-		return err
+func (h *Handler) handleText(c tele.Context) error {
+	if c.Text() == "Посмотреть предстоящие события" {
+		return h.showEvents(c, 0)
 	}
 	return nil
 }
 
-// showEvents обработчик для команды /getEvents
-func (h *Handler) showEvents(ctx context.Context, msg *tgbotapi.Message) error {
-	eventsButtons, countEvents, err := h.gettingEventsForPage(ctx, msg.Chat.ID, 0)
-	if err != nil {
-		return err
-	}
+func (h *Handler) showEvents(c tele.Context, pageNum int) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
 
-	message := tgbotapi.NewMessage(msg.Chat.ID, "Выберите событие, для просмотра детальной информации")
-	message.ReplyMarkup = keyboard.EventsKeyboard(eventsButtons, 0, 5, countEvents)
-	message.ParseMode = tgbotapi.ModeMarkdown
-
-	_, err = h.sender.Send(message)
-	if err != nil {
-		h.log.Error("error answer on command", slog.String("error", err.Error()))
-		return err
-	}
-	return nil
-}
-
-// showEventsPage отображает конкретную "страницу" со списком событий
-func (h *Handler) showEventsPage(ctx context.Context, chatID int64, messageID int, numPage int) error {
-	eventsButtons, countEvents, err := h.gettingEventsForPage(ctx, chatID, numPage)
-	if err != nil {
-		return err
-	}
-
-	message := tgbotapi.NewEditMessageTextAndMarkup(chatID, messageID, "Выберите событие, для просмотра детальной информации", keyboard.EventsKeyboard(eventsButtons, numPage, 5, countEvents))
-	message.ParseMode = tgbotapi.ModeMarkdown
-
-	_, err = h.sender.Send(message)
-	if err != nil {
-		h.log.Error("error answer callback", slog.String("error", err.Error()))
-		return err
-	}
-	return nil
-
-}
-
-// gettingEventsForPage метод для получения событий и формирования рядов с ними
-func (h *Handler) gettingEventsForPage(ctx context.Context, chatID int64, numPage int) ([]keyboard.EventButton, int, error) {
-	// Отправляем данные в сервисный слой, в случае ошибки - отправляем пользователю соответствующее сообщение
 	events, err := h.service.GetEvents(ctx)
 	if err != nil {
-		errMsg := tgbotapi.NewMessage(chatID, "Произошла ошибка")
-		_, err = h.sender.Send(errMsg)
-		if err != nil {
-			h.log.Error("error send answer about error", slog.String("error", err.Error()))
-			return nil, 0, err
-		}
-		return nil, 0, err
+		h.log.Error("failed to get events", slog.String("error", err.Error()))
+		return c.Send("Ошибка при получении событий")
 	}
+
+	h.log.Info("events from service", slog.Int("count", len(events)))
 
 	if len(events) == 0 {
-		noEventsMsg := tgbotapi.NewMessage(chatID, "К сожалению, событий не найдено")
-		noEventsMsg.ReplyMarkup = keyboard.MainKeyboard()
-		_, err = h.sender.Send(noEventsMsg)
-		if err != nil {
-			h.log.Error("error send answer about error", slog.String("error", err.Error()))
-			return nil, 0, err
-		}
+		return c.Send("Событий не найдено")
 	}
 
-	countEvents := len(events)
-	start := numPage * 5
-	end := start + 5
+	pageSize := 5
+	totalEvents := len(events)
+	start := pageNum * pageSize
 
-	if start >= countEvents {
+	if start >= totalEvents {
 		start = 0
-	}
-	if end > countEvents {
-		end = countEvents
+		pageNum = 0
 	}
 
-	pageEvents := events[start:end]
+	end := start + pageSize
+	if end > totalEvents {
+		end = totalEvents
+	}
 
-	// Создаём "кнопки" с соответствующими данными
-	var eventsButtons []keyboard.EventButton
-	for _, e := range pageEvents {
-		eventsButtons = append(eventsButtons, keyboard.EventButton{
+	var buttons []keyboard.EventButton
+	for i := start; i < end; i++ {
+		e := events[i]
+		buttons = append(buttons, keyboard.EventButton{
 			EventID: e.Id,
 			Title:   e.Title,
 		})
 	}
 
-	return eventsButtons, countEvents, nil
+	markup := keyboard.EventsKeyboard(buttons, pageNum, pageSize, totalEvents)
+
+	if c.Callback() != nil {
+		return c.Edit(
+			"Выберите событие:",
+			&tele.SendOptions{
+				ParseMode:   tele.ModeMarkdown,
+				ReplyMarkup: markup,
+			},
+		)
+	}
+
+	return c.Send(
+		"Выберите событие:",
+		&tele.SendOptions{
+			ParseMode:   tele.ModeMarkdown,
+			ReplyMarkup: markup,
+		},
+	)
 }
 
-// showEventDetails показывает детали события
-func (h *Handler) showEventDetails(ctx context.Context, callback *tgbotapi.CallbackQuery) error {
-	dataSplit := strings.Split(callback.Data, "_")
-	e, err := h.service.GetEvent(ctx, dataSplit[1])
-	if err != nil {
-		errEventsDetails := tgbotapi.NewMessage(callback.Message.Chat.ID, "Ошибка получения деталей события")
-		errEventsDetails.ReplyMarkup = keyboard.MainKeyboard()
-		_, err = h.sender.Send(errEventsDetails)
-		if err != nil {
-			h.log.Error("error send answer about error", slog.String("error", err.Error()))
-			return err
-		}
-	}
-
-	// Форматируем информацию
-	eventInfo := formatEventInfo(e)
-
-	// Заменяем прошлое сообщение
-	editMsg := tgbotapi.NewEditMessageTextAndMarkup(callback.Message.Chat.ID, callback.Message.MessageID, eventInfo, keyboard.EventDetailKeyboard(dataSplit[1]))
-	editMsg.ParseMode = tgbotapi.ModeMarkdown
-
-	_, err = h.sender.Send(editMsg)
-	return err
-}
-
-// backToEvents обработчик для Inline-кнопки "назад" при просмотре деталей события
-func (h *Handler) backToEvents(ctx context.Context, callback *tgbotapi.CallbackQuery) error {
-	eventsButtons, countEvents, err := h.gettingEventsForPage(ctx, callback.Message.Chat.ID, 0)
-	if err != nil {
-		return err
-	}
-
-	// Заменяем прошлое сообщение
-	message := tgbotapi.NewEditMessageTextAndMarkup(callback.Message.Chat.ID, callback.Message.MessageID, "Выберите событие, для просмотра детальной информации", keyboard.EventsKeyboard(eventsButtons, 0, 5, countEvents))
-	_, err = h.sender.Send(message)
-	if err != nil {
-		h.log.Error("error answer callback", slog.String("error", err.Error()))
-		return err
-	}
-	return nil
-}
-
-// register регистрирует пользователя на конкретное событие
-func (h *Handler) register(ctx context.Context, callback *tgbotapi.CallbackQuery) error {
-	dataSplit := strings.Split(callback.Data, "_")
-	result, err := h.service.RegisterUser(ctx, dataSplit[1], callback.Message.Chat.ID, callback.Message.Chat.UserName)
-	if err != nil {
-		errMsg := tgbotapi.NewMessage(callback.Message.Chat.ID, "Произошла ошибка. Попробуйте ещё раз")
-		_, err = h.sender.Send(errMsg)
-		if err != nil {
-			h.log.Error("error answer about error", slog.String("error", err.Error()))
-			return err
-		}
-		return err
-	}
-
-	if result {
-		message := tgbotapi.NewEditMessageTextAndMarkup(callback.Message.Chat.ID, callback.Message.MessageID, "Вы успешно зарегистрированы!", keyboard.BackToSeeEvents())
-		_, err = h.sender.Send(message)
-		if err != nil {
-			h.log.Error("error answer on callback", slog.String("error", err.Error()))
-			return err
-		}
-	} else {
-		message := tgbotapi.NewEditMessageTextAndMarkup(callback.Message.Chat.ID, callback.Message.MessageID, "Произошла ошибка", keyboard.BackToSeeEvents())
-		_, err = h.sender.Send(message)
-		if err != nil {
-			h.log.Error("error answer about error", slog.String("error", err.Error()))
-			return err
-		}
-	}
-	return nil
-}
-
-// formatEventInfo форматирует информацию о событии
 func formatEventInfo(e *pb.Event) string {
-	t := e.StartsAt.AsTime().Format("2006-01-02 15:04:05")
-	return fmt.Sprintf("Название: %s\n Описание: %s\n Начало: %s", e.Title, e.Description, t)
+	t := e.StartsAt.AsTime().Format("02.01.2006 15:04")
+	return fmt.Sprintf("*%s*\n\n%s\n\n*Начало:* %s",
+		e.GetTitle(), e.GetDescription(), t)
+}
+
+func (h *Handler) showEventDetails(c tele.Context, eventID string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	h.log.Info("showing event details", slog.String("event_id", eventID))
+
+	event, err := h.service.GetEvent(ctx, eventID)
+	if err != nil || event == nil {
+		h.log.Error("failed to get event",
+			slog.String("event_id", eventID),
+			slog.String("error", err.Error()))
+
+		return h.showEvents(c, 0)
+	}
+
+	text := formatEventInfo(event)
+	markup := keyboard.EventDetailKeyboard(eventID)
+
+	return c.Edit(
+		text,
+		&tele.SendOptions{
+			ParseMode:   tele.ModeMarkdown,
+			ReplyMarkup: markup,
+		},
+	)
+}
+
+func (h *Handler) backToEvents(c tele.Context) error {
+	return h.showEvents(c, 0)
+}
+
+func (h *Handler) register(c tele.Context, eventID string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	user := c.Sender()
+
+	success, err := h.service.RegisterUser(ctx, eventID, c.Chat().ID, user.Username)
+	if err != nil {
+		return c.Edit(
+			"Произошла ошибка.",
+			&tele.SendOptions{
+				ParseMode:   tele.ModeMarkdown,
+				ReplyMarkup: keyboard.EventDetailKeyboard(eventID),
+			},
+		)
+	}
+
+	if success {
+		return c.Edit(
+			"Вы успешно зарегистрированы на это событие!",
+			&tele.SendOptions{
+				ParseMode:   tele.ModeMarkdown,
+				ReplyMarkup: keyboard.BackToSeeEvents(),
+			},
+		)
+	}
+
+	return c.Edit(
+		"Не удалось зарегистрироваться. Возможно, вы уже зарегистрированы на это событие.",
+		&tele.SendOptions{
+			ParseMode:   tele.ModeMarkdown,
+			ReplyMarkup: keyboard.BackToSeeEvents(),
+		},
+	)
+}
+
+func (h *Handler) handleCallback(c tele.Context) error {
+	callback := c.Callback()
+
+	h.log.Info("callback received", slog.String("data", callback.Data), slog.Int64("chat_id", c.Chat().ID))
+
+	if err := c.Respond(); err != nil {
+		h.log.Error("failed to respond to callback", slog.String("error", err.Error()))
+	}
+
+	parts := strings.SplitN(callback.Data, ":", 2)
+	if len(parts) < 2 {
+		h.log.Error("invalid callback format", slog.String("data", callback.Data))
+		return h.showEvents(c, 0)
+	}
+
+	action := parts[0]
+	data := parts[1]
+
+	h.log.Info("parsed callback", slog.String("action", action), slog.String("data", data))
+
+	switch action {
+	case "event":
+		return h.showEventDetails(c, data)
+
+	case "page":
+		page, err := strconv.Atoi(data)
+		if err != nil {
+			h.log.Error("invalid page number", slog.String("data", data))
+			return h.showEvents(c, 0)
+		}
+		return h.showEvents(c, page)
+
+	case "back":
+		return h.backToEvents(c)
+
+	case "register":
+		return h.register(c, data)
+
+	default:
+		h.log.Warn("unknown callback action", slog.String("action", action))
+		return h.showEvents(c, 0)
+	}
 }
