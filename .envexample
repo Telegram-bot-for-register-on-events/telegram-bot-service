@@ -1,5 +1,5 @@
 DB_DRIVER_NAME=postgres
 DSN=postgres://postgres:postgres@telegram-db:5432/telegram-bot-service?sslmode=disable
 DIR=internal/storage/postgres/migrations
-TELEGRAM_BOT_TOKEN=...
+TELEGRAM_BOT_TOKEN=your_token
 GRPC_ADDRESS=event:8001
