@@ -24,8 +24,8 @@ services:
     build: .
     command: ["/app/migrator", "up"]
     environment:
-      - DSN=postgres://postgres:postgres@telegram-db:5432/telegram-bot-service?sslmode=disable
-      - DIR=internal/storage/postgres/migrations
+      - DSN=${DSN}
+      - DIR=${DIR}
     depends_on:
       telegram-db:
         condition: service_healthy
@@ -37,10 +37,10 @@ services:
     build: .
     command: ["/app/bot"]
     environment:
-      - DB_DRIVER_NAME=postgres
-      - DSN=postgres://postgres:postgres@telegram-db:5432/telegram-bot-service?sslmode=disable
-      - TELEGRAM_BOT_TOKEN=8268532146:AAFdfb3BGNNixzhTxHIgTceT2oT0VlUj6RE
-      - GRPC_ADDRESS=event:8001
+      - DB_DRIVER_NAME=${DB_DRIVER_NAME}
+      - DSN=${DSN}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - GRPC_ADDRESS=${GRPC_ADDRESS}
     depends_on:
       migrate:
         condition: service_completed_successfully
