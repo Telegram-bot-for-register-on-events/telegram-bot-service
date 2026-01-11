@@ -64,7 +64,6 @@ func newCfg(log *slog.Logger) *config.Config {
 func dbConn(log *slog.Logger, cfg *config.Config) *postgres.Storage {
 	db, err := postgres.NewStorage(log, cfg.GetDatabaseDriverName(), cfg.GetDatabasePath())
 	if err != nil {
-		log.Error("failed to connect database", "error", err)
 		os.Exit(1)
 	}
 	log.Info("connection to database successfully created")
@@ -86,7 +85,6 @@ func newBot(log *slog.Logger, cfg *config.Config, srvc *service.Service) *bot.Bo
 func newClient(log *slog.Logger, cfg *config.Config) *event.Client {
 	client, err := event.NewClient(log, cfg.GetGRPCAddress())
 	if err != nil {
-		log.Error("failed to create client", "error", err)
 		os.Exit(1)
 	}
 	log.Info("client successfully created")
